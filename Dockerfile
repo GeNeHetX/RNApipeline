@@ -43,3 +43,12 @@ RUN apt-get install -y samtools
 RUN sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
 # And clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* 
+### installing Miniconda3
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+bash Miniconda3-latest-Linux-x86_64.sh -b -p /conda && \
+rm -f Miniconda3-latest-Linux-x86_64.sh
+ENV PATH="/conda/bin:${PATH}"
+
+###installing Vep with Conda 
+RUN conda install -y -c bioconda \
+ensembl-vep=105.0 \
