@@ -1,1 +1,2 @@
-# Rna-seq_pipeline
+#Single_end_pipeline 
+
