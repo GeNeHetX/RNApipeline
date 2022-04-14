@@ -30,6 +30,7 @@ To run this pipeline Nextflow installation in required
 #Running the pipe 
 
 cd single_end_pipeline
+
 nextflow run single_end_pipe.nf -c nextflowGC.config -with-trace  -w gs://genehetxtst/<dirName>
 
 
