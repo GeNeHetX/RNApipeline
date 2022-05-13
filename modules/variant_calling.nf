@@ -1,13 +1,5 @@
 nextflow.enable.dsl=2
 
-Channel.fromList(file(params.sampleList).readLines())
-.map {
-  [it ,  file(params.sampleInputDir + "/" + it + params.samPsuffix1),file(params.sampleInputDir + "/" + it + params.samPsuffix2)] }
-.set { samples_ch }
-
-
-
-
 process PicardSamsorted{
 	
 
@@ -18,11 +10,11 @@ process PicardSamsorted{
 	
 	"""
 	##marking duplicates 
-	java -XX:ParallelGCThreads= $task.cpus -jar $params.picard  MarkDuplicates \
+	java -jar $params.picard  MarkDuplicates \
 		I= $bamfile\
       		O=${bamfile.baseName}marked_duplicates.bam \
       		M=${bamfile.baseName}marked_dup_metrics.txt && \
-      	java -XX:ParallelGCThreads= $task.cpus -jar $params.picard SortSam \
+      	java -jar $params.picard SortSam \
       		I=${bamfile.baseName}marked_duplicates.bam\
       		O=${bamfile.baseName}marked_duplicates_sorted.bam \
       		SORT_ORDER=coordinate
@@ -46,7 +38,7 @@ process gatk_vc {
 	
 	
 	output: 
-	file "{sortedbam.baseName}.vcf" 
+	file "*.vcf" 
 	
 	
 	"""
@@ -54,23 +46,20 @@ process gatk_vc {
  
 	##SplitNCigar 
 	java -jar $params.gatk SplitNCigarReads \
-		--native-pair-hmm-threads $task.cpus\
       		-R $ref_data/ref.fa\
       		-I $sortedbam\
       		-O ${sortedbam.baseName}_split.bam 
 	##adding groups to reads 
-	java -XX:ParallelGCThreads= $task.cpus -jar $params.picard AddOrReplaceReadGroups \
+	java -jar $params.picard AddOrReplaceReadGroups \
 		I= ${sortedbam.baseName}_split.bam \
 		O= ${sortedbam.baseName}_split_RG.bam\
-		RGID=1 \
 		RGLB=lib2 \
 		RGPL=illumina \
 		RGPU=unit1 \
-		RGSM=3 
+		RGSM=1 
 	
 	##BaseRecalibrator 
 	java -jar $params.gatk BaseRecalibrator \
-	  	--native-pair-hmm-threads $task.cpus\
 	  	-I ${sortedbam.baseName}_split_RG.bam\
 	  	-R $ref_data/ref.fa  \
 	  	--known-sites $ref_data/knowns_variants.vcf \
@@ -79,16 +68,15 @@ process gatk_vc {
 	  	-O ${sortedbam.baseName}_split_RG_recal_data.table
 	##ApplyBQSR
 	java -jar $params.gatk ApplyBQSR \
-		--native-pair-hmm-threads $task.cpus\
 		-R $ref_data/ref.fa \
 		-I ${sortedbam.baseName}_split_RG.bam \
 		--bqsr-recal-file ${sortedbam.baseName}_split_RG_recal_data.table\
 		-O ${sortedbam.baseName}_abqsr.bam
 	##Running HaplotypeCaller 
-	java -jar $params.gatk HaplotypeCaller --native-pair-hmm-threads $task.cpus \
-		 -R $ref_data/ref.fa \
-		 -I ${sortedbam.baseName}_abqsr.bam \
-		 -O ${sortedbam.baseName}.vcf -bamout ${sortedbam.baseName}_out.bam
+	java -jar $params.gatk  HaplotypeCaller   -R $ref_data/ref.fa -I ${sortedbam.baseName}_abqsr.bam -O ${sortedbam.baseName}.vcf 
+	
+	rename sed -e 's/\StarOutAligned.sortedByCoord.outmarked_duplicates_sorted//' ${sortedbam.baseName}.vcf
+
 
 
 
@@ -104,29 +92,15 @@ process Vep{
 	path vcf 
 	
 	output: 
-	path "*.txt"
+	path "*.vcf"
 	
 	script: 
 	"""
-	./vep -i $vcf -o ${vcf.baseName}.txt \
-	 -offline\
-	 -cache \
-	 --variant_class \
-	 --sift\
-	 --polyphen \
-	 --humdiv\
-	 --nearest \
-	 --distance\
-	 --overlaps\
-	 --gene_phenotype\
-	 --regulatory\
-	 --mirna\
-	 --hgvs\
-	 --protein
-	 
-	 
+	vep -i $vcf -o ${vcf.baseName}_annot.vcf --offline --cache --dir_cache /opt/vep/.vep --sift p,s,b --variant_class --nearest gene --gene_phenotype --hgvs --protein --symbol --canonical --mane  --var_synonyms --vcf 
 
 
 	"""
 }
+
+
 
