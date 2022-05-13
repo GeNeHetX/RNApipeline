@@ -8,15 +8,15 @@ Channel.fromList(file(params.sampleList).readLines())
 .set { samples_ch }
 
 
-include {buildIndex; doSTAR; FCounts; multiqc} from '/home/nassimaima/Rna-seq_pipeline-main/modules/rna_seq_pipe.nf'
-include {PicardSamsorted; gatk_vc;Vep} from '/home/nassimaima/Rna-seq_pipeline-main/modules/variant_calling.nf'
+include {buildIndex; doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
+include {PicardSamsorted; gatk_vc;Vep} from '../modules/variant_calling.nf'
 
 workflow {
-	buildIndex(params.refFasta, params.refGTF,params.vcf)
-	doSTAR(buildIndex.out, samples_ch)
-	FCounts(doSTAR.out[0],buildIndex.out)
+	
+	doSTAR(params.ref, samples_ch)
+	FCounts(doSTAR.out[0],params.ref)
 	PicardSamsorted(doSTAR.out[0])
-	gatk_vc(buildIndex.out,PicardSamsorted.out)
+	gatk_vc(params.ref,PicardSamsorted.out)
 	Vep(gatk_vc.out)
-	multiqc(doSTAR.out[2],doSTAR.out[1])
+	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 }
