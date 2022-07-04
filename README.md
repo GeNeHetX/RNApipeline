@@ -35,7 +35,7 @@ params.outFilterMismatchNoverLmax = val
 to generate params.ref you can use the bash script "ref_build.sh"
 
 ## Pipeline execution 
-cd Workflow 
+cd Workflow \
 nextflow run single_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
 nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
 for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" 
