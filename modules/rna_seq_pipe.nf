@@ -50,7 +50,7 @@ process FCounts {
 	publishDir "${params.outputdir}/FC_output", mode: 'copy'
 
 	input:
-	file allbams 
+	path allbams
 	path index2 
 
 	
@@ -59,7 +59,7 @@ process FCounts {
 	path "exonscount_QC.txt" 
 	path "genecount_QC.txt" 
 	path "exonscount.txt" 
-	path "genecount_matrix.tab"
+	path "genecount.txt"
 	
 	
 	""" 
@@ -70,18 +70,21 @@ process FCounts {
 	(head -n 1 genecount.tab && tail -n +2 genecount.tab | sort -d ) > genecount1.tab 
 	sort -d $index2/geneInfo.tab >geneinfos.tab 
 	awk 'NR>1' geneinfos.tab > geneinfos1.tab 
-	awk 'BEGIN { print "Geneid_reference\tGene_name\tGene_type" } { print }' geneinfos1.tab > geneinfos2.tab
+	awk 'BEGIN { print "GeneidReference\tGeneName\tGeneType" } { print }' geneinfos1.tab > geneinfos2.tab
 	paste -d geneinfos2.tab genecount1.tab > genecount_matrix.tab 
 	
-	mv exonscount.summary exonscount_QC.txt
-	mv genecount.summary genecount_QC.txt
-	mv exonscount exonscount.txt
+	mv exonscount.summary exonscount_QC1.txt
+	mv genecount.summary genecount_QC1.txt
+	mv exonscount exonscount1.txt
+	mv genecount_matrix.tab genecount1.txt
+	
+	
+	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount_QC1.txt > exonscount_QC.txt
+	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount_QC1.txt > genecount_QC.txt
+	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "GeneId");print}' > genecount.txt
+	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "ExonId");print}' > exonscount.txt
 	
 
-
-	
-	
-	
 	"""
 }
 
