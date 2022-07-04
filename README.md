@@ -33,7 +33,7 @@ params.outFilterMismatchNmax = val
 params.outFilterMismatchNoverLmax = val  
 
 to generate params.ref you can use the bash script "ref_build.sh" \
-to generate the sample list : ls fastq_dir|sed -e 's/\_R1.fastq.gz$//' >samlist.txt (for single end)\ 
+to generate the sample list : ls fastq_dir|sed -e 's/\_R1.fastq.gz$//' >samlist.txt (for single end) \ 
 ls fastq_dir|sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//' > samlist.txt (for paired end )
 
 ## Pipeline execution 
