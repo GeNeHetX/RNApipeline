@@ -94,7 +94,7 @@ process multiqc {
     output:
     file "*.html"
     path "multiqc_data"
-    path "QC_stats.txt"
+   
     script:
     """
     multiqc .
