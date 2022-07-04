@@ -6,11 +6,11 @@ https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs\
 
 ## clone this repository 
-mkdir pipeline 
-cd pipeline 
+mkdir pipeline \
+cd pipeline \
 git clone https://github.com/GeNeHetX/Rna-seq_pipeline\
 
-###Data preparation 
+### Data preparation 
 * modify the config file by changing the following parameters if necessary :
 params.outputdir="/path/to your/outputdir" -> put the path tp your output directory(you should create a directory) 
 params.sampleInputDir = "/path/to your/inputdir" #the directory that contains your raw fastqc files 
