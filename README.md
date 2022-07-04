@@ -6,10 +6,9 @@ https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs\
 
 ## clone this repository 
-mkdir pipeline \
-cd pipeline \
-git clone https://github.com/GeNeHetX/Rna-seq_pipeline\
 
+git clone https://github.com/GeNeHetX/Rna-seq_pipeline\
+cd Rna-seq_pipeline 
 ### Data preparation 
 * modify the config file by changing the following parameters if necessary :
 params.outputdir="/path/to your/outputdir" -> put the path tp your output directory(you should create a directory) 
@@ -35,5 +34,10 @@ params.outFilterMismatchNoverLmax = val
 
 to generate params.ref you can use the bash script "ref_build.sh"
 
+## Pipeline execution 
+cd Workflow 
+nextflow run single_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
+nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
+for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" 
 
 
