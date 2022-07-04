@@ -3,9 +3,9 @@
 mkdir ensembl_v105_GRCh38_p13 &&\
 chmod +rwx ensembl_v105_GRCh38_p13
 	 
-gunzip -c /home/nassimaima/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > ref.fa
+gunzip -c /path/to/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > ref.fa
 	
-gunzip -c /home/nassimaima/Homo_sapiens.GRCh38.105.chr.gtf.gz >ref.gtf
+gunzip -c /path/to/Homo_sapiens.GRCh38.105.chr.gtf.gz >ref.gtf
 	
 	
 ##create an  samtools index (needed for GATK4)
