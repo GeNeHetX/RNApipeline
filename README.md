@@ -3,7 +3,7 @@ This pipeline is developed using Nextflow. \
 Nextflow and Docker installation is required \
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : \
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
-https://hub.docker.com/repository/docker/genehetx/vep_hs
+https://hub.docker.com/repository/docker/genehetx/vep_hs \
 this pipeline has two modules: \ 
 * rna_seq_pipe.nf : contains STAR alignment , FeatureCounts( reads quantification) and MultiQC
 * variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA -seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation 
