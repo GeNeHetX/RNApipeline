@@ -1,4 +1,4 @@
-# Single_end_pipeline 
+#Single_end_pipeline 
 
 ## Data preparation 
 * downoald the single_end_pipeline directory 
