@@ -7,7 +7,7 @@ https://hub.docker.com/repository/docker/genehetx/vep_hs\
 
 ## clone this repository 
 
-git clone https://github.com/GeNeHetX/Rna-seq_pipeline\
+git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
 ### Data preparation 
 * modify the config file by changing the following parameters if necessary :
