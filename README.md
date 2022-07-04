@@ -33,7 +33,7 @@ params.outFilterScoreMinOverLread = val
 params.outFilterMismatchNmax = val  
 params.outFilterMismatchNoverLmax = val  
 
-
+to generate params.ref you can use the bash script "ref_build.sh"
 
 
 
