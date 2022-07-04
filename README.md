@@ -4,10 +4,12 @@ Nextflow and Docker installation is required \
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : \
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs \
-this pipeline has two modules: \ 
-* rna_seq_pipe.nf : contains STAR alignment , FeatureCounts( reads quantification) and MultiQC
-* variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA -seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation 
+This pipeline has two modules: \ 
+* rna_seq_pipe.nf : contains  Fastqc , STAR alignment , FeatureCounts( reads quantification) and MultiQC
+* variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA -seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation \
 
+The aim of this pipeline is : \
+check the qualiod the fastq files, align to a reference genome (STAR) ,expression quatification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
 
 ## Clone this repository 
 
