@@ -11,7 +11,7 @@ Channel.fromList(file(params.sampleList).readLines())
 include {doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
 
 workflow {
-	doSTAR(buildIndex.out, samples_ch)
+	doSTAR(params.ref, samples_ch)
 	FCounts(doSTAR.out[0].collect(),params.ref)
 	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 }
