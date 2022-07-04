@@ -9,7 +9,7 @@ This pipeline has two modules: \
 * variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA -seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation \
 
 The aim of this pipeline is : \
-check the qualiod the fastq files, align to a reference genome (STAR) ,expression quatification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
+check the quality of the fastq files, align to a reference genome (STAR) ,expression quantification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
 
 ## Clone this repository 
 
