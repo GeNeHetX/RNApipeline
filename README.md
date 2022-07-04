@@ -1,5 +1,5 @@
 # RNA-seq pipeline 
-This pipeline is developed using Nextflow.
+This pipeline is developed using Nextflow. \
 Nextflow and Docker installation is required 
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : 
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq 
