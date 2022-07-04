@@ -8,7 +8,7 @@ Channel.fromList(file(params.sampleList).readLines())
   [it ,  file(params.sampleInputDir + "/" + it + params.samPsuffix1 )] }
 .set { samples_ch}
 
-include doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
+include {doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
 
 workflow {
 	doSTAR(buildIndex.out, samples_ch)
