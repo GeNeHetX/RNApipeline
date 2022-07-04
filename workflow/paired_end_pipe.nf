@@ -14,7 +14,7 @@ include {gatk_vc;Vep} from '../modules/variant_calling.nf'
 workflow {
 	
 	doSTAR(params.ref, samples_ch)
-	FCounts(doSTAR.out[0],params.ref)
+	FCounts(doSTAR.out[0].collect(),params.ref)
 	gatk_vc(params.ref,doSTAR.out[0])
 	Vep(gatk_vc.out)
 	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect(),Vep.out[1].collect())
