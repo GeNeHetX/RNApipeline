@@ -5,7 +5,7 @@ the two docker images containning all the tools required by the pipeline are ava
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs
 
-## clone this repository 
+## Clone this repository 
 
 git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
