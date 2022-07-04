@@ -8,15 +8,14 @@ Channel.fromList(file(params.sampleList).readLines())
 .set { samples_ch }
 
 
-include {buildIndex; doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
-include {PicardSamsorted; gatk_vc;Vep} from '../modules/variant_calling.nf'
+include {doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
+include {gatk_vc;Vep} from '../modules/variant_calling.nf'
 
 workflow {
 	
 	doSTAR(params.ref, samples_ch)
 	FCounts(doSTAR.out[0],params.ref)
-	PicardSamsorted(doSTAR.out[0])
-	gatk_vc(params.ref,PicardSamsorted.out)
+	gatk_vc(params.ref,doSTAR.out[0])
 	Vep(gatk_vc.out)
-	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
+	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect(),Vep.out[1].collect())
 }
