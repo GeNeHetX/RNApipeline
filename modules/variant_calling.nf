@@ -1,11 +1,5 @@
 nextflow.enable.dsl=2
 
-Channel.fromList(file(params.sampleList).readLines())
-.map {
-  [it ,  file(params.sampleInputDir + "/" + it + params.samPsuffix1 )] }
-.set { samples_ch}
-
-
 process gatk_vc {
 	publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
 	input :
