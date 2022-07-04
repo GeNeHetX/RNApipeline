@@ -98,8 +98,5 @@ process multiqc {
     script:
     """
     multiqc .
-   
-    paste -d "\t" multiqc_data/multiqc_fastqc.txt  multiqc_data/multiqc_star.txt > QC_stats.txt
-
     """
 }
