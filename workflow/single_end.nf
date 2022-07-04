@@ -12,6 +12,6 @@ include doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
 
 workflow {
 	doSTAR(buildIndex.out, samples_ch)
-	FCounts(doSTAR.out[0],params.ref)
+	FCounts(doSTAR.out[0].collect(),params.ref)
 	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 }
