@@ -22,38 +22,57 @@ cd Rna-seq_pipeline
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) \
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' |sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
   fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) \
+  
 2. Geneate indexes required for each step of the pipeline \
-You will find in the ref_build.sh bash script, all the command lines that will help you to generate them 
-* modify the config file by changing the following parameters if necessary :
-params.outputdir="/path/to your/outputdir" -> put the path tp your output directory(you should create a directory) \
-params.sampleInputDir = "/path/to your/inputdir" #the directory that contains your raw fastqc files \
-params.sampleList = "/path/to your/samlist.txt" #file that contains a list of your fastqc sample names \
-params.samPsuffix1= #specify the suffix name of your fastq file (ex: _R1_001) \
-params.samPsuffix2=#specify the suffix name of your fastq file (ex: _R2_001) -> for paired end \
-params.ref="/PATH/to/ensembl_v105_GRCh38_p13"#specify the path to this directory that all the reference data for the pipeline execution very important!\
-* The folllowing parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file) 
-params.alignIntronMax =val 
-params.alignMatesGapMax= val  
-params.limitOutSJcollapsed =val  
-params.limitSjdbInsertNsj =val
-params.outFilterMultimapNmax =val 
-params.winAnchorMultimapNmax =val  
-params.alignSJoverhangMin =val 
-params.alignSJDBoverhangMin =val  
-paramsalignIntronMin =val 
-params.outFilterMatchNminOverLread =val 
-params.outFilterScoreMinOverLread = val 
-params.outFilterMismatchNmax = val  
-params.outFilterMismatchNoverLmax = val  
-
-to generate params.ref you can use the bash script "ref_build.sh" \
-to generate the sample list : ls fastq_dir|sed -e 's/\_R1.fastq.gz$//' >samlist.txt (for single end)
+You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
 
 
-## Pipeline execution 
-cd Workflow \
+3. Modify the config file by changing the following parameters if necessary : \
+  * Please modify the following parameters : \
+params.outputdir="/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) \
+params.sampleInputDir = "/path/to your/inputdir"  -> the directory that contains your raw fastqc files \
+params.sampleList = "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above) \
+params.samPsuffix1=  -> specify the suffix of your fastq file name (ex: _R1_001) \
+params.samPsuffix2=  ->specify the suffix of your fastq file name  (ex: _R2_001) -> (for paired end)  \
+params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh) \
+ * optional parameters : The folllowing parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file) \
+  * params.alignIntronMax =val 
+  * params.alignMatesGapMax= val  
+  * params.limitOutSJcollapsed =val  
+  * params.limitSjdbInsertNsj =val
+  * params.outFilterMultimapNmax =val 
+  * params.winAnchorMultimapNmax =val  
+  * params.alignSJoverhangMin =val 
+  * params.alignSJDBoverhangMin =val  
+  * paramsalignIntronMin =val 
+  * params.outFilterMatchNminOverLread =val 
+  * params.outFilterScoreMinOverLread = val 
+  * params.outFilterMismatchNmax = val  
+  * params.outFilterMismatchNoverLmax = val  
+
+
+## Local Pipeline execution ##
+
+cd workflow \
 nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
 nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
-for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" 
+
+for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" \
+-c : specify the path to the config file \
+-with-report : allows you to generate a report about the pipeline execution 
+
+## Google Cloud pipeline execution ##
+* install Google Cloud SDK 
+* Create a project on Google Cloud Life Science 
+* Create a Bucket for your project 
+* generate a Json Key 
+For more information about the previous steps please Check the Google Cloud Documentation (https://cloud.google.com/life-sciences/docs/tutorials/nextflow) \
+1. Modify the paramaters on the nextflowGCP. config file 
+2. log in to Google Cloud \
+3. export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)
+
+
+
+
 
 
