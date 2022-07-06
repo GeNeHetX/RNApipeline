@@ -1,4 +1,4 @@
-# RNA-seq pipeline #
+# 1. RNA-seq pipeline #
 This pipeline is developed using Nextflow. \
 Nextflow and Docker installation is required \
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : \
@@ -12,18 +12,18 @@ The aim of this pipeline is : \
 check the quality of the fastq files, align to a reference genome (STAR) ,expression quantification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
 
 
-## Clone this repository ##
+## 1.1 Clone this repository ##
 
 git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
 
-### Data preparation ###
+### 1.1.1 Data preparation ###
  1. Generate a sample list containning all of your samples names using the following bash comman line: \
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) \
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' |sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
   fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) 
   
-2. Geneate indexes required for each step of the pipeline 
+ 2. Geneate indexes required for each step of the pipeline 
 You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. 
 
 
@@ -51,7 +51,7 @@ You will find in the ref_build.sh bash script, all the command lines that will h
    * params.outFilterMismatchNoverLmax = val  
 
 
-## Local Pipeline execution ##
+## 1.2 Local Pipeline execution ##
 
 cd workflow \
 nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \ 
@@ -63,7 +63,7 @@ for the -w : you have to specify the name of your work directory otherwise nextf
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution 
 
-## Google Cloud pipeline execution ##
+## 1.3 Google Cloud pipeline execution ##
  * Install Google Cloud SDK 
  * Create a project on Google Cloud Life Science 
  * Create a Bucket for your project 
