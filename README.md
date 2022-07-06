@@ -29,12 +29,12 @@ You will find in the ref_build.sh bash script, all the command lines that will h
 
 3. Modify the config file by changing the following parameters if necessary :
   * Please modify the following parameters :
-params.outputdir="/path/to your/outputdir" -> specify the path to your output directory (you should create a directory)\
-params.sampleInputDir = "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
-params.sampleList = "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
-params.samPsuffix1=  -> specify the suffix of your fastq file name (ex: _R1_001)\
-params.samPsuffix2=  ->specify the suffix of your fastq file name  (ex: _R2_001) -> (for paired end)\
-params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
+  * params.outputdir="/path/to your/outputdir" -> specify the path to your output directory (you should create a directory)\
+  * params.sampleInputDir = "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
+  * params.sampleList = "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
+  * params.samPsuffix1=  -> specify the suffix of your fastq file name (ex: _R1_001)\
+  * params.samPsuffix2=  ->specify the suffix of your fastq file name  (ex: _R2_001) -> (for paired end)\
+  * params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
  * optional parameters : The folllowing parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file)
   * params.alignIntronMax =val 
   * params.alignMatesGapMax= val  
