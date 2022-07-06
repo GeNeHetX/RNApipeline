@@ -18,24 +18,24 @@ git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
 
 ### Data preparation ###
- 1. Generate a sample list containning all of your samples names using the following bash comman line : \
+ 1. Generate a sample list containning all of your samples names using the following bash comman line : 
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) \
   ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' |sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
-  fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) \
+  fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) 
   
-2. Geneate indexes required for each step of the pipeline \
+2. Geneate indexes required for each step of the pipeline 
 You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
 
 
-3. Modify the config file by changing the following parameters if necessary :\
-  * Please modify the following parameters :\
+3. Modify the config file by changing the following parameters if necessary :
+  * Please modify the following parameters :
 params.outputdir="/path/to your/outputdir" -> specify the path to your output directory (you should create a directory)\
 params.sampleInputDir = "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
 params.sampleList = "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
 params.samPsuffix1=  -> specify the suffix of your fastq file name (ex: _R1_001)\
 params.samPsuffix2=  ->specify the suffix of your fastq file name  (ex: _R2_001) -> (for paired end)\
-params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)\
- * optional parameters : The folllowing parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file)\
+params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
+ * optional parameters : The folllowing parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file)
   * params.alignIntronMax =val 
   * params.alignMatesGapMax= val  
   * params.limitOutSJcollapsed =val  
@@ -55,7 +55,7 @@ params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directo
 
 cd workflow \
 nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
-nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
+nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report 
 
 for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work"\
 -c : specify the path to the config file\
@@ -67,15 +67,15 @@ for the -w : you have to specify the name of your work directory otherwise nextf
  * Create a Bucket for your project 
  * generate a Json Key 
 For more information about the previous steps please Check the Google Cloud Documentation (https://cloud.google.com/life-sciences/docs/tutorials/nextflow) \
- 1. Modify the paramaters on the nextflowGCP. config file as mentionned above.\
-   * modify the machines capacities  (Cpus, RAM, Disk) (if you want)\
-   * specify the name of  your Project\
-   * specify the zone  where your data will be stored (this parameters is specified during the bucket creation) \
- 2. log in to Google Cloud\
- 3. export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)\
- 4. pipeline Execution :\
+ 1. Modify the paramaters on the nextflowGCP. config file as mentionned above.
+   * modify the machines capacities  (Cpus, RAM, Disk) (if you want)
+   * specify the name of  your Project
+   * specify the zone  where your data will be stored (this parameters is specified during the bucket creation) 
+ 2. log in to Google Cloud
+ 3. export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)
+ 4. pipeline Execution :
  nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report\
- nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report\
+ nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report
 
 
 
