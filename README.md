@@ -82,7 +82,7 @@ For more information about the previous steps please Check the Google Cloud Docu
         container = 'genehetx/genehetx-rnaseq:latest' \
         memory = 40.GB \
         disk = 1.TB \
-    } \
+    } 
 
    * Specify the name of  your Project, the region where your data will be stored \
    google { \
@@ -90,7 +90,7 @@ For more information about the previous steps please Check the Google Cloud Docu
     zone = 'europe-west4-a' \
     lifeSciences.bootDiskSize=80.GB
     google.lifeSciences.preemptible=true \
-} \ 
+} 
 
  4. Pipeline Execution :
  nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report\
