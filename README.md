@@ -1,4 +1,4 @@
-# RNA-seq pipeline 
+# RNA-seq pipeline #
 This pipeline is developed using Nextflow. \
 Nextflow and Docker installation is required \
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : \
@@ -12,17 +12,18 @@ The aim of this pipeline is : \
 check the quality of the fastq files, align to a reference genome (STAR) ,expression quantification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
 
 
-## Clone this repository 
+## Clone this repository ##
 
 git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
 
-### Data preparation 
-1* Generate a sample list containning all of your samples names using the following bash comman line : \
- ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) \
- ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' |sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
- fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) \
-
+### Data preparation ###
+ 1. Generate a sample list containning all of your samples names using the following bash comman line : \
+  ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) \
+  ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' |sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
+  fastq_dir: is directory containning all your fastq files (make sure your only have fastq files you want to analyse) \
+2. Geneate indexes required for each step of the pipeline \
+You will find in the ref_build.sh bash script, all the command lines that will help you to generate them 
 * modify the config file by changing the following parameters if necessary :
 params.outputdir="/path/to your/outputdir" -> put the path tp your output directory(you should create a directory) \
 params.sampleInputDir = "/path/to your/inputdir" #the directory that contains your raw fastqc files \
