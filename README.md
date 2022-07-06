@@ -11,10 +11,13 @@ This pipeline has two modules: \
 The aim of this pipeline is : \
 check the quality of the fastq files, align to a reference genome (STAR) ,expression quantification with FeatureCounts, Varinat calling (Using GATK4), Variants annotation (VEP) and a summary of the FeatureCounts and STAR quality using MultiQC.
 
+
 ## Clone this repository 
 
 git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
 cd Rna-seq_pipeline 
+
+
 ### Data preparation 
 * modify the config file by changing the following parameters if necessary :
 params.outputdir="/path/to your/outputdir" -> put the path tp your output directory(you should create a directory) \
