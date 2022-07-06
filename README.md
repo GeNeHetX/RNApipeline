@@ -62,14 +62,17 @@ for the -w : you have to specify the name of your work directory otherwise nextf
 -with-report : allows you to generate a report about the pipeline execution 
 
 ## Google Cloud pipeline execution ##
-* install Google Cloud SDK 
-* Create a project on Google Cloud Life Science 
-* Create a Bucket for your project 
-* generate a Json Key 
+ * install Google Cloud SDK 
+ * Create a project on Google Cloud Life Science 
+ * Create a Bucket for your project 
+ * generate a Json Key 
 For more information about the previous steps please Check the Google Cloud Documentation (https://cloud.google.com/life-sciences/docs/tutorials/nextflow) \
-1. Modify the paramaters on the nextflowGCP. config file 
-2. log in to Google Cloud \
-3. export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)
+ 1. Modify the paramaters on the nextflowGCP. config file as mentionned above. \
+  * modify the machines capacities  ( cores, RAM, disk) (if you want) 
+  * specify the name of  your Project 
+  * specify the zone  where your data will be stored (this parameters is specified during the bucket creation) 
+ 2. log in to Google Cloud \
+ 3. export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)
 
 
 
