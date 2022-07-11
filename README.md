@@ -7,8 +7,8 @@ the two docker images containning all the tools required by the pipeline are ava
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs \
 This pipeline has two modules:
-* rna_seq_pipe.nf : contains  Fastqc , STAR alignment , FeatureCounts( reads quantification) and MultiQC
-* variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA -seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation
+* rna_seq_pipe.nf : contains Fastqc, STAR alignment, FeatureCounts(reads quantification) and MultiQC
+* variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA-Seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation
 
 The aims of this pipeline are :
 
