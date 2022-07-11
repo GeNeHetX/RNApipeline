@@ -37,7 +37,7 @@ process gatk_vc {
 	
 	##BaseRecalibrator 
 	java -jar $params.gatk BaseRecalibrator \
-	  	-I ${bamfilebaseName}.split.RG.bam\
+	  	-I ${bamfile.baseName}.split.RG.bam\
 	  	-R $ref_data/ref.fa  \
 	  	--known-sites $ref_data/knowns_variants.vcf \
 	  	--use-jdk-inflater true \
