@@ -27,9 +27,9 @@ In order to run correctly, three main variables :
 * _output_dir_ : the directory in which all results of the pipe should be stored
 * _ref_ : the directory with the reference genome information
 
-:warning: __if running on google cloud__ : Check the section 4 "Google Cloud execution" 
+:warning: __if running on google cloud__ : (Check the section 4 "Google Cloud execution) 
 
-:warning: __if _ref_  is not available __ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
+:warning: __if _ref_ is not available __ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
 
 
 
