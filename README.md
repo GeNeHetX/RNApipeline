@@ -126,8 +126,8 @@ To execute the pipeline please follow these insctructions:
 }
 ```
  5. Pipeline Execution :
- * a) Single end data : 
+ * a) Single end data : \
  ```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
  
- * b) Paired end data 
+ * b) Paired end data: \
  ```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
