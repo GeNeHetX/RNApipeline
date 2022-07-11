@@ -79,7 +79,7 @@ For this step you will need:
 ## 3. Local Pipeline execution ##
 
 ```cd workflow``` \
-* a) For signle end data : 
+* a) For signle end data: \
 ```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` \
 :warning: The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes \
 
