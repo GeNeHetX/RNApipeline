@@ -47,7 +47,7 @@ process doSTAR {
 }
 
 process FCounts {
-	publishDir "${params.outputdir}/FC_output", mode: 'copy'
+	publishDir "${params.outputdir}/FeautureCounts_output", mode: 'copy'
 
 	input:
 	path allbams
