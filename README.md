@@ -40,7 +40,9 @@ cd Rna-seq_pipeline
 
 ## 2. Data preparation ##
  1. Generate a sample list containning all of your samples names using the following bash comman line: \
+ ** For single end data: 
   ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) ```\
+   ** For paired end data: 
   ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data)``` \
   fastq_dir: is directory containning all your fastq files (make sure you only have fastq files you want to analyse)
 
