@@ -41,7 +41,7 @@ cd Rna-seq_pipeline
 ## 2. Data preparation ##
  1. Generate a sample list containning all of your samples names using the following bash comman line: \
   ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) ```\
-  ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data) \
+  ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data)``` \
   fastq_dir: is directory containning all your fastq files (make sure you only have fastq files you want to analyse)
 
  2. Generate indexes required for each step of the pipeline
@@ -54,37 +54,40 @@ For this step you will need:
 
 3. Modify the nextflow.config file by changing the following parameters if necessary :
   * To run the piepline correctly, Please modify the following parameters (Mandatory):
-    * params.outputdir="/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored \
-    * params.sampleInputDir = "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
-    * params.sampleList = "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
-    * params.samPsuffix1=  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) \
-    * params.samPsuffix2= ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)\
-    * params.ref="/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
+    * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored \
+    * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
+    * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
+    * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) \
+    * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)\
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
  * optional parameters : The following parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file)
-   * params.alignIntronMax =val
-   * params.alignMatesGapMax= val  
-   * params.limitOutSJcollapsed =val  
-   * params.limitSjdbInsertNsj =val
-   * params.outFilterMultimapNmax =val
-   * params.winAnchorMultimapNmax =val  
-   * params.alignSJoverhangMin =val
-   * params.alignSJDBoverhangMin =val  
-   * paramsalignIntronMin =val
-   * params.outFilterMatchNminOverLread =val
-   * params.outFilterScoreMinOverLread = val
-   * params.outFilterMismatchNmax = val  
-   * params.outFilterMismatchNoverLmax = val  
+   * ```params.alignIntronMax = ```val
+   * ```params.alignMatesGapMax=``` val  
+   * ```params.limitOutSJcollapsed``` =val  
+   * ```params.limitSjdbInsertNsj``` =val
+   * ```params.outFilterMultimapNmax``` =val
+   * ```params.winAnchorMultimapNmax``` =val  
+   * ```params.alignSJoverhangMin``` =val
+   * ```params.alignSJDBoverhangMin``` =val  
+   * ```paramsalignIntronMin``` =val
+   * ```params.outFilterMatchNminOverLread``` =val
+   * ```params.outFilterScoreMinOverLread``` = val
+   * ```params.outFilterMismatchNmax``` = val  
+   * ```params.outFilterMismatchNoverLmax``` = val  
 
 
 ## 3. Local Pipeline execution ##
 
-cd workflow \
-nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
-nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report \
-The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes \
-The paired_end_pipe.nf Wokflow accepts only paired end data and executes : the FastQC, STAR, FeatureCounts, GATK4, Vep and MultQC processes \
+```cd workflow``` \
+* a) For signle end data : 
+```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` \
+:warning: The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes \
 
-for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work"\
+* b) For paired end data : \
+``````nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` \
+:warning:The paired_end_pipe.nf Wokflow accepts only paired end data and executes : the FastQC, STAR, FeatureCounts, GATK4, Vep and MultQC processes \
+
+for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" \
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution
 
@@ -97,28 +100,32 @@ This step requires : \
 For more information about the previous steps please Check the Google Cloud Documentation (https://cloud.google.com/life-sciences/docs/tutorials/nextflow) \
 To execute the pipeline please follow these insctructions:
   1. Log in to Google Cloud
-  2. Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)
+  2. ```Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)``` (activation of the json key on youre work_directory)
   3. Copy all your fastq files and the directory generated by the ref_build.sh  using the following command : gsutil cp -r dir1/dir2 gs://my-bucket.
   4. Modify the following  paramaters on the nextflowGCP. config :
-   a) params.sampleInputDir = "gs://bucket_name/fastq_dir" -> google cloud paths start with gs, followed by the bucket name \
-   b) params.ref = "gs://bucket_name/ensembl_v105_GRCh38_p13" \
-   c) for the rest of the pipeline parameters you can change them by following the isntruction mentionned in "Data preparation". \
+   a) ```params.sampleInputDir =``` "gs://bucket_name/fastq_dir" -> google cloud paths start with gs, followed by the bucket name \
+   b) ```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
+   c) For the rest of the pipeline parameters you can change them by following the isntruction mentionned in "Data preparation". \
    d) Modify the machines capacities  (Cpus, RAM, Disk, container) (if you want) \
-   withName: doSTAR{ \
+  ``` withName: doSTAR{ \
         cpus = 16 \
         container = 'genehetx/genehetx-rnaseq:latest' \
         memory = 40.GB \
         disk = 1.TB \
     }
-
+ ```
    e) Specify the name of  your Project, the region where your data will be stored \
-   google { \
+   ``` 
+  google { \
     project = 'Project_name' \
     zone = 'europe-west4-a' \
     lifeSciences.bootDiskSize=80.GB
     google.lifeSciences.preemptible=true \
 }
-
+```
  5. Pipeline Execution :
- nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report\
- nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report
+ * a) Single end data : 
+ ```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
+ 
+ * b) Paired end data 
+ ```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
