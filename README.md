@@ -29,7 +29,7 @@ In order to run correctly, three main variables :
 
 :warning: __if running on google cloud__ : (Check the section 4 "Google Cloud execution) 
 
-:warning: __if ref is not available __ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
+:warning: __if ref is not available__ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
 
 
 
@@ -42,7 +42,7 @@ cd Rna-seq_pipeline
  1. Generate a sample list containning all of your samples names using the following bash comman line: \
  * For single end data: \
   ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) ```\
- * For paired end data: \ 
+ * For paired end data : \
   ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data)``` \
   fastq_dir: is directory containning all your fastq files (make sure you only have fastq files you want to analyse)
 
