@@ -25,11 +25,11 @@ process gatk_vc {
 	java -jar $params.gatk SplitNCigarReads \
       		-R $ref_data/ref.fa\
       		-I ${bamfile.baseName}marked_duplicates_sorted.bam\
-      		-O ${sortedbam.baseName}.split.bam 
+      		-O ${bamfile.baseName}.split.bam 
 	##adding groups to reads 
 	java -jar $params.picard AddOrReplaceReadGroups \
-		I= ${sortedbam.baseName}.split.bam \
-		O= ${sortedbam.baseName}.split.RG.bam\
+		I= ${bamfile.baseName}.split.bam \
+		O= ${bamfile.baseName}.split.RG.bam\
 		RGLB=lib2 \
 		RGPL=illumina \
 		RGPU=unit1 \
@@ -37,25 +37,24 @@ process gatk_vc {
 	
 	##BaseRecalibrator 
 	java -jar $params.gatk BaseRecalibrator \
-	  	-I ${sortedbam.baseName}.split.RG.bam\
+	  	-I ${bamfilebaseName}.split.RG.bam\
 	  	-R $ref_data/ref.fa  \
 	  	--known-sites $ref_data/knowns_variants.vcf \
 	  	--use-jdk-inflater true \
 	  	--use-jdk-deflater true \
-	  	-O ${sortedbam.baseName}.split.RG.recal.data.table
+	  	-O ${bamfile.baseName}.split.RG.recal.data.table
 	##ApplyBQSR
 	java -jar $params.gatk ApplyBQSR \
 		-R $ref_data/ref.fa \
-		-I ${sortedbam.baseName}.split.RG.bam \
-		--bqsr-recal-file ${sortedbam.baseName}.split.RG.recal.data.table\
-		-O ${sortedbam.baseName}.abqsr.bam
+		-I ${bamfile.baseName}.split.RG.bam \
+		--bqsr-recal-file ${bamfile.baseName}.split.RG.recal.data.table\
+		-O ${bamfile.baseName}.abqsr.bam
 	
 	java -jar $params.gatk HaplotypeCaller  \
    	-R $ref_data/ref.fa \
-   	-I ${sortedbam.baseName}.abqsr.bam\
-   	-O ${sortedbam.SimpleName}.vcf \
-   	-bamout ${sortedbam.SimpleName}.bamout.bam
-
+   	-I ${bamfile.baseName}.abqsr.bam\
+   	-O ${bamfile.SimpleName}.vcf \
+   	-bamout ${bamfile.SimpleName}.bamout.bam
 
 	"""
 }
