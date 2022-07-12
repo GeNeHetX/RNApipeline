@@ -15,7 +15,7 @@ workflow {
 	
 	doSTAR(params.ref, samples_ch)
 	FCounts(doSTAR.out[0].collect(),params.ref)
-	gatk_vc(params.ref,doSTAR.out[0])
+	gatk_vc(doSTAR.out[0], params.ref)
 	Vep(gatk_vc.out)
 	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 }
