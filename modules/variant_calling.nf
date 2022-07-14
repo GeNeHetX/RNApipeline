@@ -70,7 +70,6 @@ process Vep{
 	
 	output: 
 	path "*_annot.tab"
-	path "*_summary.txt"
 	
 	script: 
 	"""
