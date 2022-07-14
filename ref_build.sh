@@ -32,7 +32,7 @@ gunzip -c 1000GENOMES-phase_3.vcf.gz > knowns_variants.vcf
 java -jar gatk-package-4.2.5.0-local.jar IndexFeatureFile -I knowns_variants.vcf 
 
 ##parsing a gtf file in order to get exon informations (needed for featureCount output analysis)
-awk -F "\t" '$3 == "exon" { print $4"\t"$5"\t"$7"\t"$9 }' Homo_sapiens.GRCh38.105.chr.gtf |awk '{for(i=5;i<=NF;i++){if($i~/^"ENSE/){a=$i}} print a, $1,$2,$3,$5,$15}'| sed 's/\"//g'|sed 's/\;//g'| sort -d | awk 'BEGIN {print "exon_id\tstart\tend\tstrand\tgene_id\tgene_name"} { print }' >Exon_gtf_info.tab
+awk -F "\t" '$3 == "exon" { print $4"\t"$5"\t"$7"\t"$9 }' ref.gtf |awk '{for(i=5;i<=NF;i++){if($i~/^"ENSE/){a=$i}} print a, $1,$2,$3,$5,$15}'| sed 's/\"//g'|sed 's/\;//g'| sort -d | awk 'BEGIN {print "exon_id\tstart\tend\tstrand\tgene_id\tgene_name"} { print }' >Exon_gtf_info.tab
 
 mv ref.gtf ensembl_v105_GRCh38_p13/ref.gtf
 mv ref.fa.fai ensembl_v105_GRCh38_p13/ref.fa.fai
@@ -41,7 +41,7 @@ mv knowns_variants.vcf  ensembl_v105_GRCh38_p13/knowns_variants.vcf
 mv knowns_variants.vcf.idx ensembl_v105_GRCh38_p13/knowns_variants.vcf.idx
 mv ref.fa ensembl_v105_GRCh38_p13/ref.fa
 mv Exon_gtf_info.tab ensembl_v105_GRCh38_p13/Exon_gtf_info.tab
-cp ref_data.sh ensembl_v105_GRCh38_p13/ref_data.sh
+cp ref_build.sh ensembl_v105_GRCh38_p13/ref_data.sh
 
 
 ##generate a STAR index 
