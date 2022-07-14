@@ -7,6 +7,9 @@ chmod +rwx ensembl_v105_GRCh38_p13
 wget http://ftp.ensembl.org/pub/release-105/gtf/homo_sapiens/Homo_sapiens.GRCh38.105.chr.gtf.gz
 wget http://ftp.ensembl.org/pub/release-105/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 
+##downoalding the vcf file 
+wget http://ftp.ensembl.org/pub/release-105/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz
+
 	 
 gunzip -c Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > ref.fa
 	
