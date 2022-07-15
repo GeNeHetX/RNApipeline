@@ -77,10 +77,10 @@ For this step you will need:
    * ```params.outFilterScoreMinOverLread``` = val
    * ```params.outFilterMismatchNmax``` = val  
    * ```params.outFilterMismatchNoverLmax``` = val  
-  *Kallisto 
-  * ```params.bootstrap``` = 100
-  * ```params.read_len``` = 120
-  * ```params.read_sd``` =20
+ * Kallisto 
+   * ```params.bootstrap``` = 100
+   * ```params.read_len``` = 120
+   * ```params.read_sd``` =20
 
 
 ## 3. Local Pipeline execution ##
