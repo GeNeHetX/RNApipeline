@@ -79,8 +79,8 @@ For this step you will need:
    * ```params.outFilterMismatchNoverLmax``` = val  
  * Kallisto 
    * ```params.bootstrap``` = 100
-   * ```params.read_len``` = 120
-   * ```params.read_sd``` =20
+   * ```params.read_len``` = 120 (Only for single end data )
+   * ```params.read_sd``` =20 (Only for single end data )
 
 
 ## 3. Local Pipeline execution ##
