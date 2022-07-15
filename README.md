@@ -56,6 +56,7 @@ For this step you will need:
 
 3. Modify the nextflow.config file by changing the following parameters if necessary :
   * To run the piepline correctly, Please modify the following parameters (Mandatory):
+    * ```params.variant_calling ``` = true by default , but if you don't want to execute Variant calling put "false"
     * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored \
     * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
     * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)\
