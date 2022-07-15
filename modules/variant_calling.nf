@@ -9,6 +9,8 @@ process gatk_vc {
 	output: 
 	file "*.vcf" 
 	
+	when:
+	variant_calling == true
 
 	"""
 	##marking duplicates 
@@ -61,6 +63,7 @@ process gatk_vc {
 
 
 
+
 process Vep{
 
 	publishDir "${params.outputdir}/VEP_output", mode: 'copy'
@@ -70,6 +73,9 @@ process Vep{
 	
 	output: 
 	path "*_annot.tab"
+	
+	when:
+	variant_calling == true
 	
 	script: 
 	"""
