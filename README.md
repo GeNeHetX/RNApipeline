@@ -62,7 +62,8 @@ For this step you will need:
     * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) \
     * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)\
     * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
- * optional parameters : The following parameters are for STAR aligner you can specify the values you want or keep the default ones (available on the config file)
+ * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
+ * STAR 
    * ```params.alignIntronMax = ```val
    * ```params.alignMatesGapMax=``` val  
    * ```params.limitOutSJcollapsed``` =val  
@@ -76,6 +77,10 @@ For this step you will need:
    * ```params.outFilterScoreMinOverLread``` = val
    * ```params.outFilterMismatchNmax``` = val  
    * ```params.outFilterMismatchNoverLmax``` = val  
+  *Kallisto 
+  * ```params.bootstrap``` = 100
+  * ```params.read_len``` = 120
+  * ```params.read_sd``` =20
 
 
 ## 3. Local Pipeline execution ##
