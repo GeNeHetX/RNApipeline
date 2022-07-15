@@ -3,9 +3,10 @@
 mkdir ensembl_v105_GRCh38_p13 &&\
 chmod +rwx ensembl_v105_GRCh38_p13
 
-##downoalding the gtf and fasta file 
+##downoalding the gtf,fasta and cdna files 
 wget http://ftp.ensembl.org/pub/release-105/gtf/homo_sapiens/Homo_sapiens.GRCh38.105.chr.gtf.gz
 wget http://ftp.ensembl.org/pub/release-105/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+wget http://ftp.ensembl.org/pub/release-105/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 
 ##downoalding the vcf file 
 wget http://ftp.ensembl.org/pub/release-105/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz
@@ -14,11 +15,15 @@ wget http://ftp.ensembl.org/pub/release-105/variation/vcf/homo_sapiens/1000GENOM
 gunzip -c Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > ref.fa
 	
 gunzip -c Homo_sapiens.GRCh38.105.chr.gtf.gz >ref.gtf
+gunzip -c Homo_sapiens.GRCh38.cdna.all.fa.gz >transcriptom.fa
 	
 	
 ##create an  samtools index (needed for GATK4)
 samtools faidx ref.fa
-	
+
+##kallisto index 
+kallisto index -i kallisto_index transcriptom.fa
+
 	
 ##create a dict (needed for GATK4)
 ##you should specify the path to your picard.jar file 
@@ -41,6 +46,7 @@ mv knowns_variants.vcf  ensembl_v105_GRCh38_p13/knowns_variants.vcf
 mv knowns_variants.vcf.idx ensembl_v105_GRCh38_p13/knowns_variants.vcf.idx
 mv ref.fa ensembl_v105_GRCh38_p13/ref.fa
 mv Exon_gtf_info.tab ensembl_v105_GRCh38_p13/Exon_gtf_info.tab
+mv kallisto_index ensembl_v105_GRCh38_p13/kallisto_index
 cp ref_build.sh ensembl_v105_GRCh38_p13/ref_data.sh
 
 
