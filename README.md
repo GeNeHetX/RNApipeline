@@ -35,7 +35,7 @@ In order to run correctly, three main variables :
 
 ## 1. Clone this repository ##
 
-```git clone https://github.com/GeNeHetX/Rna-seq_pipeline```
+```git clone https://github.com/GeNeHetX/Rna-seq_pipeline``` \
 ```cd Rna-seq_pipeline```
 
 ## 2. Data preparation ##
