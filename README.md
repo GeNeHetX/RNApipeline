@@ -35,8 +35,8 @@ In order to run correctly, three main variables :
 
 ## 1. Clone this repository ##
 
-git clone https://github.com/GeNeHetX/Rna-seq_pipeline \
-cd Rna-seq_pipeline
+```git clone https://github.com/GeNeHetX/Rna-seq_pipeline```
+```cd Rna-seq_pipeline```
 
 ## 2. Data preparation ##
  1. Generate a sample list containning all of your samples names using the following bash comman line: \
