@@ -10,7 +10,7 @@ Channel.fromList(file(params.sampleList).readLines())
 
 include {doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
 include {gatk_vc;Vep} from '../modules/variant_calling.nf'
-include {kallisto_paired_end} from '../modules/kallisto.nf
+include {kallisto_paired_end} from '../modules/kallisto.nf'
 
 workflow {
 	
