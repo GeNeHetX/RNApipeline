@@ -22,7 +22,7 @@ gunzip -c Homo_sapiens.GRCh38.cdna.all.fa.gz >transcriptom.fa
 samtools faidx ref.fa
 
 ##kallisto index 
-kallisto index -i kallisto_index transcriptom.fa
+kallisto index -i kalliso_index transcriptom.fa
 
 	
 ##create a dict (needed for GATK4)
@@ -46,7 +46,7 @@ mv knowns_variants.vcf  ensembl_v105_GRCh38_p13/knowns_variants.vcf
 mv knowns_variants.vcf.idx ensembl_v105_GRCh38_p13/knowns_variants.vcf.idx
 mv ref.fa ensembl_v105_GRCh38_p13/ref.fa
 mv Exon_gtf_info.tab ensembl_v105_GRCh38_p13/Exon_gtf_info.tab
-mv kallisto_index ensembl_v105_GRCh38_p13/kallisto_index
+mv kalliso_index ensembl_v105_GRCh38_p13/kalliso_index
 cp ref_build.sh ensembl_v105_GRCh38_p13/ref_data.sh
 
 
