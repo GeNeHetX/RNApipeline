@@ -15,6 +15,7 @@ The aims of this pipeline are :
 * To check the quality of the fastq files (FatsQC)
 * To align to a reference genome/transcriptome using (STAR)
 * To quantify the expression quantification using (FeatureCounts)
+* To quantify abundances of transcripts using (Kallisto)
 * To identify variations (Variant calling) using (GATK4)
 * To functionaly annotate variants using (VEP)
 * To summarize of the FeatureCounts and STAR quality using (MultiQC)
