@@ -117,7 +117,7 @@ To execute the pipeline please follow these insctructions:
    a) ```params.sampleInputDir =``` "gs://bucket_name/fastq_dir" -> google cloud paths start with gs, followed by the bucket name \
    b) ```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
    c) For the rest of the pipeline parameters you can change them by following the isntruction mentionned in "Data preparation". \
-   d) Modify the machines capacities  (Cpus, RAM, Disk, container) (if you want) \
+   d) Modify the machines capacities  (Cpus, RAM, Disk, container) (if you want) 
   ``` withName: doSTAR{ \
         cpus = 16 \
         container = 'genehetx/genehetx-rnaseq:latest' \
@@ -125,7 +125,7 @@ To execute the pipeline please follow these insctructions:
         disk = 1.TB \
     }
  ```
-   e) Specify the name of  your Project, the region where your data will be stored \
+   e) Specify the name of  your Project, the region where your data will be stored 
    ``` 
   google { \
     project = 'Project_name' \
