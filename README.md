@@ -87,23 +87,23 @@ For this step you will need:
 
 ## 3. Local Pipeline execution ##
 
-```cd workflow``` \
+```cd workflow``` 
 * a) For signle end data: \
-```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` \
+```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` 
 
-:warning: The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes \
+:warning: The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes 
 
 * b) For paired end data : \
-```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` \
+```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` 
 
-:warning:The paired_end_pipe.nf Wokflow accepts only paired end data and executes : the FastQC, STAR, FeatureCounts, GATK4, Vep and MultQC processes \
+:warning:The paired_end_pipe.nf Wokflow accepts only paired end data and executes : the FastQC, STAR, FeatureCounts, GATK4, Vep and MultQC processes 
 
 for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" \
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution
 
 ## 4. Google Cloud pipeline execution ##
-This step requires : \
+This step requires : 
   * Install Google Cloud SDK
   * Create a project on Google Cloud Life Science
   * Create a Bucket for your project
