@@ -55,16 +55,17 @@ For this step you will need:
      * To make sure that the FASTA and the GTF belong to the same genome version !!
      * To get a Known-variants file: You can retrive it from Ensembl Database. 
 
-3. Modify the nextflow.config file by changing the following parameters if necessary :
+## 3. Nextflow.config modification ## 
+Modify the nextflow.config file by changing the following parameters if necessary :
   * To run the piepline correctly, Please modify the following parameters (Mandatory):
     * ```params.kallisto ``` = true , by default, but if yo don't want to execute kallisto put false for this parameter 
     * ```params.variant_calling ``` = true,  by default , but if you don't want to execute Variant calling put "false"
     * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored 
     * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
-    * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in the first step (mentionned above)
+    * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in __Data preparation step__
     * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) 
     * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh)
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh) in __Data preparation step__
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
  * STAR 
    * ```params.alignIntronMax = ```val
@@ -82,8 +83,9 @@ For this step you will need:
    * ```params.outFilterMismatchNoverLmax``` = val  
  * Kallisto 
    * ```params.bootstrap``` = 100
-   * ```params.read_len``` = 120 (Only for single end data )
-   * ```params.read_sd``` =20 (Only for single end data )
+   the following two parameters only needed for single end data
+   * ```params.read_len``` = 120 
+   * ```params.read_sd``` =20 
 
 
 ## 3. Local Pipeline execution ##
