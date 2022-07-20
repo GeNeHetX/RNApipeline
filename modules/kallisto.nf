@@ -11,6 +11,7 @@ publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 	output: 
 	
 	file "${Sample}"
+	kallisto == true
 	"""
 	
 	kallisto quant -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile} 
@@ -30,7 +31,7 @@ publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 	
 	output: 
 	file "${Sample}"
-	
+	kallisto == true
 	"""
 	
 	kallisto quant --single -l ${params.read_len} -s ${params.read_sd} -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
