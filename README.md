@@ -35,17 +35,35 @@ In order to run correctly, three main variables :
 
 
 ## 1. Clone this repository ##
+- The first step is the git cloning of the pipeline directory \
 
 ```git clone https://github.com/GeNeHetX/Rna-seq_pipeline``` \
+
+- The second step is considering the Rna-seq_pipeline directory as your work directory \
+
 ```cd Rna-seq_pipeline```
 
 ## 2. Data preparation ##
- 1. Generate a sample list containning all of your samples names using the following bash comman line: \
- * For single end data: \
-  ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt (for single end data) ```\
- * For paired end data : \
-  ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt (for paired end data)``` \
-  fastq_dir: is directory containning all your fastq files (make sure you only have fastq files you want to analyse)
+ 1. Generate a sample list containing all of your samples names without the suffixes using the following bash comman line: \
+ * __For single end data:__ \
+  ```ls path/to/your/Inputdir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt  ```\
+  - Inputdir : is the directory containing only your fastq files and nothing else \ 
+  - _R1.fastq.gz : is an example of a suffix and it can be diffrenet from a datset to another \
+  -samlist.txt: is the output of the command , it is a txt file that contains a list of you samples name \
+  ** Example: \
+  ```
+  Inputdir : \
+    * sample1_R1.fastq.gz
+    * sample2_R1.fastq.gz 
+    
+   samlist.txt:
+    * sample1
+    * sample2
+  ```
+  
+ * __For paired end data__ : \
+  ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt ``` \
+ 
 
  2. Generate indexes required for each step of the pipeline
 You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
