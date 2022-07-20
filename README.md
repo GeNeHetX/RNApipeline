@@ -28,7 +28,7 @@ In order to run correctly, three main variables :
 * _output_dir_ : the directory in which all results of the pipe should be stored
 * _ref_ : the directory with the reference genome information
 
-:warning: __if running on google cloud__ : (Check the section 4 "Google Cloud execution) 
+:warning: __if running on google cloud__ : (Check the section 5 "Google Cloud execution) 
 
 :warning: __if ref is not available__ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
 
@@ -46,11 +46,11 @@ In order to run correctly, three main variables :
 ## 2. Data preparation ##
  1. Generate a sample list containing all of your samples names without the suffixes using the following bash comman line: \
  * __For single end data:__ \
-  ```ls path/to/your/Inputdir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt  ```\
+  ```ls path/to/your/Inputdir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt  ```
   - Inputdir : is the directory containing only your fastq files and nothing else \ 
   - _R1.fastq.gz : is an example of a suffix and it can be diffrenet from a datset to another \
   -samlist.txt: is the output of the command , it is a txt file that contains a list of you samples name \
-  ** Example: \
+  ** Example: 
   ```
   Inputdir : \
     * sample1_R1.fastq.gz
