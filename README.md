@@ -88,7 +88,7 @@ Modify the nextflow.config file by changing the following parameters if necessar
    * ```params.read_sd``` =20 
 
 
-## 3. Local Pipeline execution ##
+## 4. Local Pipeline execution ##
 
 ```cd workflow``` 
 * a) For signle end data: \
@@ -105,7 +105,7 @@ for the -w : you have to specify the name of your work directory otherwise nextf
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution
 
-## 4. Google Cloud pipeline execution ##
+## 5. Google Cloud pipeline execution ##
 This step requires : 
   * Install Google Cloud SDK
   * Create a project on Google Cloud Life Science
