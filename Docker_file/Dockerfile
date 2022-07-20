@@ -41,5 +41,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV SA=Europe/Paris
 RUN apt-get install -y samtools
 RUN sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
+#install kallisto 
+RUN apt-get update &&  apt-get -y install kallisto
 # And clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
