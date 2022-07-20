@@ -35,11 +35,11 @@ In order to run correctly, three main variables :
 
 
 ## 1. Clone this repository ##
-- The first step is the git cloning of the pipeline directory \
+- The first step is the git cloning of the pipeline directory 
 
-```git clone https://github.com/GeNeHetX/Rna-seq_pipeline``` \
+```git clone https://github.com/GeNeHetX/Rna-seq_pipeline``` 
 
-- The second step is considering the Rna-seq_pipeline directory as your work directory \
+- The second step is considering the Rna-seq_pipeline directory as your work directory 
 
 ```cd Rna-seq_pipeline```
 
