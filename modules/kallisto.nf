@@ -11,6 +11,8 @@ publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 	output: 
 	
 	file "${Sample}"
+	
+	when:
 	kallisto == true
 	"""
 	
@@ -31,6 +33,8 @@ publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 	
 	output: 
 	file "${Sample}"
+	
+	when:
 	kallisto == true
 	"""
 	
