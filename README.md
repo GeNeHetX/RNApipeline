@@ -73,17 +73,19 @@ For this step you will need:
      * To make sure that the FASTA and the GTF belong to the same genome version !!
      * To get a Known-variants file: You can retrive it from Ensembl Database. 
 
-## 3. Nextflow.config modification ## 
-Modify the nextflow.config file by changing the following parameters if necessary :
+## 3. setting up  ## 
+The pipeline can be executed on a local computer or on Google Cloud Life Science platforme \
+For a local execution modify the nextflow.config file and for Google Cloud execution modify the nextflowGCP.config, by changing the following parameters if necessary :
   * To run the piepline correctly, Please modify the following parameters (Mandatory):
     * ```params.kallisto ``` = true , by default, but if yo don't want to execute kallisto put false for this parameter 
     * ```params.variant_calling ``` = true,  by default , but if you don't want to execute Variant calling put "false"
-    * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored 
-    * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files\
+    * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored
+    * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files => for a local eexcution \
+    this parameters will change when we executeon Google Cloud platefome to:  ```params.sampleInputDir =``` "gs://bucket_name/sampleInputDir" -> google cloud paths start with gs, followed by the bucket name \
     * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in __Data preparation step__
     * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) 
     * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution (generated using red_build.sh) in __Data preparation step__
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify ot this way  ```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
  * STAR 
    * ```params.alignIntronMax = ```val
@@ -106,20 +108,20 @@ Modify the nextflow.config file by changing the following parameters if necessar
    * ```params.read_sd``` =20 
 
 
-## 4. Local Pipeline execution ##
-
+## 4. Local Pipeline executioon 
+For the execution setup your working directory to "workflow" which is the directory containning the workflows 
 ```cd workflow``` 
 * a) For signle end data: \
-```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` 
+```nextflow run single_end.nf -c ../nextflow.config  -w /path/to/your/workdir  -with-report``` 
 
-:warning: The single_end.nf workflow accepts only single end data and exectues : the FastQC, STAR, FeatureCounts and MultQC processes 
+:warning: The single_end.nf workflow accepts only single end data  
 
 * b) For paired end data : \
-```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflow.config  -w /path/to/your/workdir  -with-report``` 
+```nextflow run paired_end_pipe.nf -c ../nextflow.config  -w /path/to/your/workdir  -with-report``` 
 
-:warning:The paired_end_pipe.nf Wokflow accepts only paired end data and executes : the FastQC, STAR, FeatureCounts, GATK4, Vep and MultQC processes 
+:warning:The paired_end_pipe.nf Wokflow accepts only paired end data 
 
-for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" \
+for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" the work directory is different from the your output directory \
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution
 
@@ -134,11 +136,8 @@ To execute the pipeline please follow these insctructions:
   1. Log in to Google Cloud
   2. ```Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)``` (activation of the json key on youre work_directory)
   3. Copy all your fastq files and the directory generated by the ref_build.sh  using the following command : gsutil cp -r dir1/dir2 gs://my-bucket.
-  4. Modify the following  paramaters on the nextflowGCP. config :
-   a) ```params.sampleInputDir =``` "gs://bucket_name/fastq_dir" -> google cloud paths start with gs, followed by the bucket name \
-   b) ```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
-   c) For the rest of the pipeline parameters you can change them by following the isntruction mentionned in "Data preparation". \
-   d) Modify the machines capacities  (Cpus, RAM, Disk, container) (if you want) 
+  
+   d) Modify the machines capacities on the netflowGCP.config (Cpus, RAM, Disk, container) (if you want) 
   ``` withName: doSTAR{ \
         cpus = 16 \
         container = 'genehetx/genehetx-rnaseq:latest' \
@@ -146,7 +145,7 @@ To execute the pipeline please follow these insctructions:
         disk = 1.TB \
     }
  ```
-   e) Specify the name of  your Project, the region where your data will be stored 
+   e) Specify the name of  your Project, and the region where your data will be stored 
    ``` 
   google { \
     project = 'Project_name' \
@@ -157,7 +156,7 @@ To execute the pipeline please follow these insctructions:
 ```
  5. Pipeline Execution :
  * a) Single end data : \
- ```nextflow run single_end.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
- 
+ ```nextflow run single_end.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```
+ You can specify the name of your pipeline report [file name]
  * b) Paired end data: \
- ```nextflow run paired_end_pipe.nf -c ../Rna-seq_pipeline/nextflowGCP.config  -w /path/to/your/workdir  -with-report```
+ ```nextflow run paired_end_pipe.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```
