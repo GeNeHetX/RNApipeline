@@ -121,7 +121,7 @@ For the execution setup your working directory to "workflow" which is the direct
 
 :warning:The paired_end_pipe.nf Wokflow accepts only paired end data 
 
-for the -w : you have to specify the name of your work directory otherwise nextflow will name it "work" the work directory is different from the your output directory \
+for the -w : you can to specify the name and the location where you want to save your work directory otherwise nextflow will name it "work" and place it in your current working directory (which ic "workflow". The work directory is different from the your output directory \
 -c : specify the path to the config file\
 -with-report : allows you to generate a report about the pipeline execution
 
