@@ -66,17 +66,22 @@ In order to run correctly, three main variables :
  
 
  2. Generate indexes required for each step of the pipeline
-You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
+* You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
 For this step you will need: 
      * Reference genome file: (fasta)  GRCh38.p13 you can retrieve it from Ensembl Database.
      * Gene annotation file : (GTF) you can retrieve it from the Ensembl Database.
+     * Transcriptome file: (Cdna) you can retrieve it from the Ensembl Database. 
      * To make sure that the FASTA and the GTF belong to the same genome version !!
      * To get a Known-variants file: You can retrive it from Ensembl Database. 
+This step requires 32Go RAM, so it is advised to generate once for the same genome, however you can generate it using the pipeline also by changing parameter in the config files (nextflow.config and nextflowGCP.config)=> explained in the __setting up__ setp.
 
 ## 3. setting up  ## 
 The pipeline can be executed on a local computer or on Google Cloud Life Science platforme \
 For a local execution modify the nextflow.config file and for Google Cloud execution modify the nextflowGCP.config, by changing the following parameters if necessary :
   * To run the piepline correctly, Please modify the following parameters (Mandatory):
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify it this way
+```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
+But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
     * ```params.kallisto ``` = true , by default, but if yo don't want to execute kallisto put false for this parameter 
     * ```params.variant_calling ``` = true,  by default , but if you don't want to execute Variant calling put "false"
     * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored
@@ -85,7 +90,8 @@ For a local execution modify the nextflow.config file and for Google Cloud execu
     * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in __Data preparation step__
     * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) 
     * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify ot this way  ```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify it this way
+```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
  * STAR 
    * ```params.alignIntronMax = ```val
