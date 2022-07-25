@@ -49,6 +49,7 @@ mv knowns_variants.vcf.idx ensembl_v${Ensemblv}_GRCh38_p13/knowns_variants.vcf.i
 mv ref.fa ensembl_v${Ensemblv}_GRCh38_p13/ref.fa
 mv Exon_gtf_info.tab ensembl_v${Ensemblv}_GRCh38_p13/Exon_gtf_info.tab
 mv kalliso_index ensembl_v${Ensemblv}_GRCh38_p13/kalliso_index
+mv transcriptom.fa ensembl_v${Ensemblv}_GRCh38_p13/transcriptom.fa 
 cp ref_build.sh ensembl_v${Ensemblv}_GRCh38_p13/ref_data.sh
 
 
