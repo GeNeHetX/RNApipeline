@@ -8,14 +8,14 @@ Channel.fromList(file(params.sampleList).readLines())
 .set { samples_ch }
 
 
-include {doSTAR; FCounts; multiqc} from '../modules/rna_seq_pipe.nf'
-include {gatk_vc;Vep} from '../modules/variant_calling.nf'
-include {Kallisto_paired_end} from '../modules/kallisto.nf'
-include {buildref} from '../modules/index.nf'
+include {doSTAR; FCounts; multiqc} from './modules/rna_seq_pipe.nf'
+include {gatk_vc;Vep} from './modules/variant_calling.nf'
+include {Kallisto_paired_end} from './modules/kallisto.nf'
+include {buildref} from './modules/index.nf'
 
 
 workflow {
-	
+
 	if(params.ref=="no_ref") {
  	buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
 	doSTAR(buildref.out, samples_ch)
