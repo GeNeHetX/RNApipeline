@@ -41,6 +41,11 @@ java -jar gatk-package-4.2.5.0-local.jar IndexFeatureFile -I knowns_variants.vcf
 ##parsing a gtf file in order to get exon informations (needed for featureCount output analysis)
 awk -F "\t" '$3 == "exon" { print $4"\t"$5"\t"$7"\t"$9 }' ref.gtf |awk '{for(i=5;i<=NF;i++){if($i~/^"ENSE/){a=$i}} print a, $1,$2,$3,$5,$15}'| sed 's/\"//g'|sed 's/\;//g'| sort -d | awk 'BEGIN {print "exon_id\tstart\tend\tstrand\tgene_id\tgene_name"} { print }' >Exon_gtf_info.tab
 
+
+grep -P "\tgene\t" ref.gtf > ref.GeneLvlOnly.gtf
+Rscript procGTF.R ref.GeneLvlOnly.gtf refGeneID_ensembl_v${Ensemblv}
+
+
 mv ref.gtf ensembl_v${Ensemblv}_GRCh38_p13/ref.gtf
 mv ref.fa.fai ensembl_v${Ensemblv}_GRCh38_p13/ref.fa.fai
 mv ref.dict ensembl_v${Ensemblv}_GRCh38_p13/ref.dict
@@ -49,7 +54,7 @@ mv knowns_variants.vcf.idx ensembl_v${Ensemblv}_GRCh38_p13/knowns_variants.vcf.i
 mv ref.fa ensembl_v${Ensemblv}_GRCh38_p13/ref.fa
 mv Exon_gtf_info.tab ensembl_v${Ensemblv}_GRCh38_p13/Exon_gtf_info.tab
 mv kalliso_index ensembl_v${Ensemblv}_GRCh38_p13/kalliso_index
-mv transcriptom.fa ensembl_v${Ensemblv}_GRCh38_p13/transcriptom.fa 
+mv transcriptom.fa ensembl_v${Ensemblv}_GRCh38_p13/transcriptom.fa
 cp ref_build.sh ensembl_v${Ensemblv}_GRCh38_p13/ref_data.sh
 
 
