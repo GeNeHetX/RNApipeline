@@ -24,7 +24,7 @@ workflow {
     doOnlySTARnCount(params.ref, samples_ch)
     }
 
-    multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
+    // multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 
   }else{
     if(params.ref== "no_ref" ){

@@ -45,8 +45,8 @@ process doOnlySTARnCount {
 
 
 
-		featureCounts -T $task.cpus -F GTF -a  $index2/ref.gtf  -s $params.strand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' StarOutAligned.sortedByCoord.out.bam
-		featureCounts -T $task.cpus -F GTF -a  $index2/ref.gtf  -s $params.strand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  StarOutAligned.sortedByCoord.out.bam
+		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf  -s $params.strand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
+		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf  -s $params.strand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
 
 		// -p for pairs
 
