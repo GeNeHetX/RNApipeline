@@ -34,7 +34,7 @@ process doOnlySTARnCount {
 	--alignMatesGapMax $params.alignMatesGapMax \
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
-	--outFilterMultimapNmax 1 --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
+	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
 	--alignSJoverhangMin $params.alignSJoverhangMin\
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
