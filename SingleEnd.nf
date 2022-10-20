@@ -1,7 +1,7 @@
 nextflow.enable.dsl=2
 
 
-
+params.featureCountP="  "
 
 Channel.fromList(file(params.sampleList).readLines())
 .map {

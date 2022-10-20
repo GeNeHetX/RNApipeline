@@ -34,7 +34,7 @@ process doOnlySTARnCount {
 	--alignMatesGapMax $params.alignMatesGapMax \
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
-	--outFilterMultimapNmax $params.winAnchorMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
+	--outFilterMultimapNmax 1 --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
 	--alignSJoverhangMin $params.alignSJoverhangMin\
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
@@ -45,8 +45,9 @@ process doOnlySTARnCount {
 
 
 
-		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf  -s $params.strand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
-		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf  -s $params.strand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
+		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.strand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
+
+		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.strand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
 
 		// -p for pairs
 
