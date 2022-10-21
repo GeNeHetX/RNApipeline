@@ -49,7 +49,7 @@ process doOnlySTARnCount {
 
 		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.strand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
 
-		// -p for pairs
+
 
 
 	"""

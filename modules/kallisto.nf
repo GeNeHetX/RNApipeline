@@ -4,19 +4,21 @@ process Kallisto_paired_end {
 publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 
 	input:
-	path idx 
+	path idx
 	tuple val(Sample), file(fastqFile)
-	
-	
-	output: 
-	
+
+
+	output:
+
 	file "${Sample}"
-	
+
 	when:
 	kallisto == true
 	"""
-	
-	kallisto quant -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile} 
+
+	#kallisto quant -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
+
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
 	"""
 
 
@@ -27,21 +29,20 @@ process Kallisto_single_end {
 publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 
 	input:
-	path idx 
+	path idx
 	tuple val(Sample), file(fastqFile)
-	
-	
-	output: 
+
+
+	output:
 	file "${Sample}"
-	
+
 	when:
 	kallisto == true
 	"""
-	
-	kallisto quant --single -l ${params.read_len} -s ${params.read_sd} -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
+
+	kallisto quant --single -l ${params.read_len} -s ${params.read_sd}  -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
 	"""
 
 
 
 }
-
