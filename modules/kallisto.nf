@@ -12,7 +12,7 @@ process KallistoPE {
 
 	output:
 
-	file "${Sample}/abundance.h5"
+
 	file "${Sample}/abundance.tsv"
 	file "${Sample}/run_info.json"
 
