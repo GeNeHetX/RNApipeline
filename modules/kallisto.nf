@@ -1,7 +1,9 @@
+nextflow.enable.dsl=2
 
 
-process Kallisto_paired_end {
-publishDir "${params.outputdir}/kallistoOut", mode: 'copy'
+process KallistoPE {
+
+	publishDir "${params.outputdir}/kallistoOut", mode: 'copy'
 
 	input:
 	path idx
@@ -10,22 +12,21 @@ publishDir "${params.outputdir}/kallistoOut", mode: 'copy'
 
 	output:
 
-	file "${Sample}_fr/abundance.h5",
-	file "${Sample}_fr/abundance.tsv",
-	file "${Sample}_fr/run_info.json",
-	file "${Sample}_rf/abundance.h5",
-	file "${Sample}_rf/abundance.tsv",
+	file "${Sample}_fr/abundance.h5"
+	file "${Sample}_fr/abundance.tsv"
+	file "${Sample}_fr/run_info.json"
+	file "${Sample}_rf/abundance.h5"
+	file "${Sample}_rf/abundance.tsv"
 	file "${Sample}_rf/run_info.json"
 
 	when:
 	kallisto == true
 	"""
 
-
-
-
-	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --fr-stranded  -o "${Sample}_fr" ${fastqFile}
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --fr-stranded  -o "${Sample}_fr" ${fastqFile} && \
 	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --rf-stranded  -o "${Sample}_rf" ${fastqFile}
+
+
 	"""
 
 
