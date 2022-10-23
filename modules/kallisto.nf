@@ -1,7 +1,7 @@
 
 
 process Kallisto_paired_end {
-publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
+publishDir "${params.outputdir}/kallistoOut", mode: 'copy'
 
 	input:
 	path idx
@@ -10,15 +10,22 @@ publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
 
 	output:
 
-	file "${Sample}"
+	file "${Sample}_fr/abundance.h5",
+	file "${Sample}_fr/abundance.tsv",
+	file "${Sample}_fr/run_info.json",
+	file "${Sample}_rf/abundance.h5",
+	file "${Sample}_rf/abundance.tsv",
+	file "${Sample}_rf/run_info.json"
 
 	when:
 	kallisto == true
 	"""
 
-	#kallisto quant -b ${params.bootstrap} -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
 
-	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}
+
+
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --fr-stranded  -o "${Sample}_fr" ${fastqFile}
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --rf-stranded  -o "${Sample}_rf" ${fastqFile}
 	"""
 
 
