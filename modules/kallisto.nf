@@ -20,7 +20,7 @@ process KallistoPE {
 	file "${Sample}_rf/run_info.json"
 
 	when:
-	kallisto == true
+	params.kallisto == true
 	"""
 
 	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --fr-stranded  -o "${Sample}_fr" ${fastqFile} && \
