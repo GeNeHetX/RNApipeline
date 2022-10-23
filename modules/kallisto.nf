@@ -12,19 +12,17 @@ process KallistoPE {
 
 	output:
 
-	file "${Sample}_fr/abundance.h5"
-	file "${Sample}_fr/abundance.tsv"
-	file "${Sample}_fr/run_info.json"
-	file "${Sample}_rf/abundance.h5"
-	file "${Sample}_rf/abundance.tsv"
-	file "${Sample}_rf/run_info.json"
+	file "${Sample}/abundance.h5"
+	file "${Sample}/abundance.tsv"
+	file "${Sample}/run_info.json"
+
 
 	when:
 	params.kallisto == true
 	"""
 
-	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --fr-stranded  -o "${Sample}_fr" ${fastqFile} && \
-	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} --rf-stranded  -o "${Sample}_rf" ${fastqFile}
+
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} $params.kallistoStrand -o "${Sample}" ${fastqFile}
 
 
 	"""
