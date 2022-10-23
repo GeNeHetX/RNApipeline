@@ -18,6 +18,8 @@ process doOnlySTARnCount {
 	path "*exonscount.txt"
 	path "*genecount.txt"
 
+	when:
+	starcount == true
 	"""
 
 	fastqc -t $task.cpus -q $fqFile
