@@ -16,7 +16,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 rezdir=args[1]
 
-initSlist=args[2]
+# initSlist=args[2]
 
 outdir=args[3]
 

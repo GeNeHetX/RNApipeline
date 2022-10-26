@@ -58,7 +58,6 @@ system("gzip kallistoGeneCount.tsv")
 write.table( txgoutraw$abundance, file="kallistoGeneAbund.tsv",quote=F,row.names=T,col.names=T, sep="\t")
 system("gzip kallistoGeneAbund.tsv")
 
-
 write.table( txiout$abundance , file="kallistoTranscriptAbund.tsv",quote=F,row.names=T,col.names=T, sep="\t")
 system("gzip kallistoTranscriptAbund.tsv")
 
