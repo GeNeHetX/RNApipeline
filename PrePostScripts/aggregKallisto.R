@@ -9,13 +9,22 @@ args = commandArgs(trailingOnly=TRUE)
 
 # $aggkallisto
 
-rezdir=args[1]
+datdir=args[1]
 refgtf=args[2]
+# datdir="/Users/remy.nicolle/Downloads/RNAseqRez/ParadisSortLSEC_100522/RNAv1.5_Ensemblv107"
+# refgtf="/Users/remy.nicolle/Downloads/RNAseqRez/ref.gtf"
 
+outdir=datdir
+rezdir=file.path(datdir,"kallistoOut")
 
-library(GenomicFeatures);tfdb=makeTxDbFromGFF(refgtf);
+print(refgtf)
+
+library(GenomicFeatures)
+tfdb=makeTxDbFromGFF(refgtf,format="gtf");
 # saveDb(tfdb,"Homo_sapiens.GRCh38.101.txdb");
-k <- keys(tfdb, keytype = "TXNAME");reftx2gene <- select(tfdb, k, "GENEID", "TXNAME");#saveRDS(tx2gene,"Homo_sapiens.GRCh38.101.tx2gene.rds")
+k <- keys(tfdb, keytype = "TXNAME");
+reftx2gene <- select(tfdb, k, "GENEID", "TXNAME");
+#saveRDS(tx2gene,"Homo_sapiens.GRCh38.101.tx2gene.rds")
 
 # rezdir="/Users/remy.nicolle/Downloads/PilotMillisectSmarter_CROS_090522results/kallistoOut"
 # reftxgene="/Users/remy.nicolle/Downloads/PilotMillisectSmarter_CROS_090522results/reftx2gene.rds"
@@ -52,16 +61,17 @@ txgoutraw=summarizeToGene(txiout, reftx2gene,  ignoreTxVersion = T, countsFromAb
   #c("no", "scaledTPM","lengthScaledTPM"))
 
 
-write.table( txgoutraw$counts, file="kallistoGeneCount.tsv",quote=F,row.names=T,col.names=T, sep="\t")
-system("gzip kallistoGeneCount.tsv")
+write.table( txgoutraw$counts, file=file.path(outdir,"kallistoGeneCount.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
+system(paste0("gzip ",file.path(outdir,"kallistoGeneCount.tsv")))
 
-write.table( txgoutraw$abundance, file="kallistoGeneAbund.tsv",quote=F,row.names=T,col.names=T, sep="\t")
-system("gzip kallistoGeneAbund.tsv")
+write.table( txgoutraw$abundance, file=file.path(outdir,"kallistoGeneAbund.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
+system(paste0("gzip ",file.path(outdir,"kallistoGeneAbund.tsv")))
 
-write.table( txiout$abundance , file="kallistoTranscriptAbund.tsv",quote=F,row.names=T,col.names=T, sep="\t")
-system("gzip kallistoTranscriptAbund.tsv")
+write.table( txiout$abundance , file=file.path(outdir,"kallistoTranscriptAbund.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
 
-write.table( runinfo[colnames(txgoutraw$abundance),],file="kallistoInfoMetrics.tsv",quote=F,row.names=T,col.names=T, sep="\t")
+system(paste0("gzip ",file.path(outdir,"kallistoTranscriptAbund.tsv")))
+
+write.table( runinfo[colnames(txgoutraw$abundance),],file=file.path(outdir,"kallistoInfoMetrics.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
 
 
 
