@@ -6,7 +6,8 @@
 args = commandArgs(trailingOnly=TRUE)
 
 library(parallel)
-gtf=read.delim(args[1],sep="\t",as.is=T,header=F)
+gtf=read.delim(args[1],sep="\t",as.is=T,header=F,comment.char="#")
+
 gtf.getmeta=function(apieceofgtf){strsplit((apieceofgtf)[,9],";| ")}
 gtf.getmetavalue=function(apieceofgtf,field){
    metadata=gtf.getmeta(apieceofgtf)
@@ -28,6 +29,7 @@ geneTab=unique(geneTab)
 rownames(geneTab)=geneTab$GeneID
 
 geneTab=unique(geneTab[,- c(9,6,2,3,8)])
+colnames(geneTab)[1:4]=c("seqname","start","end", "strand")
 
 saveRDS(geneTab,file=paste0(args[2],".rds"))
 write.table(geneTab,file=paste0(args[2],".tsv"),quote=F,sep="\t")
