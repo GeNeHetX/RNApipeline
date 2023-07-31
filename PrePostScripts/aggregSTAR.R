@@ -20,8 +20,8 @@ args = commandArgs(trailingOnly=TRUE)
 # prefix=args[4]
 THREADS=12
 
-# datdir="/Volumes/genomic/RNA/BjnBiliaryCancer_Beaufrere/PEsort_251022/05_Process/RNAv1.5_Ensemblv107"
-# refgtf="/Volumes/genomic/REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
+# datdir="/home/cpignolet2/bobgenomic/01_RawRNASeq/IPMN_MICRODISSEC/05_Process/RNAv1.5_Ensemblv107"
+# refgtf="/home/cpignolet2/bobgenomic/00_REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
 
 
 datdir=args[1]
@@ -114,7 +114,7 @@ system(paste0("gzip ",file.path(outdir,paste0("StarFCExonCount_s",n,".tsv"))))
 
 
 # saveRDS(Y,file=file.path(outdir,paste0(prefix,sub(".tsv.gz","",fcsuffixes)[i],".rds")))
-write.table( do.call(rbind,allStarLog), file=file.path(outdir, paste0("StarMetrics", n, '.tsv')),quote=F,row.names=T,col.names=T, sep="\t")
+write.table( do.call(rbind,allStarLog), file=file.path(outdir, paste0("StarMetrics_s", n, '.tsv')),quote=F,row.names=T,col.names=T, sep="\t")
 
 
 # FCountLO=data.frame(do.call(cbind,mclapply(CntLlo,function(x)x[g,2])))
