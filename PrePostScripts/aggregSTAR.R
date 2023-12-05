@@ -28,7 +28,7 @@ datdir=args[1]
 refgtf=args[2]
 outdir=datdir
 
-rezdir=file.path(datdir,"FeautureCounts_output")
+rezdir=file.path(datdir,"FeatureCounts_output")
 
 allfiles=list.files(rezdir,recursive=F)
 allexoncounts=grep("exonscount.txt$",allfiles,value=T)

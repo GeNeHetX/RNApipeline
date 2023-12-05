@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 process doOnlySTARnCount {
 
-	publishDir "${params.outputdir}/FeautureCounts_output", mode: 'copy'
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
 
 	input :
 	path index
