@@ -45,7 +45,7 @@ allsampl=basename(alldir)
 
 I=1:length(alldir)
 
-
+n=length(alldir)
 
 runinfo=do.call(rbind,lapply(I,function(i){
   # print(i)
@@ -61,17 +61,17 @@ txgoutraw=summarizeToGene(txiout, reftx2gene,  ignoreTxVersion = T, countsFromAb
   #c("no", "scaledTPM","lengthScaledTPM"))
 
 
-write.table( txgoutraw$counts, file=file.path(outdir,"kallistoGeneCount.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
-system(paste0("gzip ",file.path(outdir,"kallistoGeneCount.tsv")))
+write.table( txgoutraw$counts, file=file.path(outdir,paste0("kallistoGeneCount_s", n, ".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
+system(paste0("gzip ",file.path(outdir,paste0("kallistoGeneCount_s", n, ".tsv"))))
 
-write.table( txgoutraw$abundance, file=file.path(outdir,"kallistoGeneAbund.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
-system(paste0("gzip ",file.path(outdir,"kallistoGeneAbund.tsv")))
+write.table( txgoutraw$abundance, file=file.path(outdir, paste0("kallistoGeneAbund_s", n, ".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
+system(paste0("gzip ",file.path(outdir,paste0("kallistoGeneAbund_s", n, ".tsv"))))
 
-write.table( txiout$abundance , file=file.path(outdir,"kallistoTranscriptAbund.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
+write.table( txiout$abundance , file=file.path(outdir,paste0("kallistoTranscriptAbund_s", n, ".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
 
-system(paste0("gzip ",file.path(outdir,"kallistoTranscriptAbund.tsv")))
+system(paste0("gzip ",file.path(outdir,paste0("kallistoTranscriptAbund_s", n, ".tsv"))))
 
-write.table( runinfo[colnames(txgoutraw$abundance),],file=file.path(outdir,"kallistoInfoMetrics.tsv"),quote=F,row.names=T,col.names=T, sep="\t")
+write.table( runinfo[colnames(txgoutraw$abundance),],file=file.path(outdir,paste0("kallistoInfoMetrics_s",n,".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
 
 
 
