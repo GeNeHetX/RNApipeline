@@ -37,15 +37,14 @@ workflow {
 
   	}
   	else {
-
-  	doSTAR(params.ref, samples_ch)
-  	FCounts(doSTAR.out[0].collect(),params.ref)
-  	Kallisto_single_end(params.ref, samples_ch)
-  	gatk_vc(doSTAR.out[0], params.ref)
+		doSTAR(params.ref, samples_ch)
+		FCounts(doSTAR.out[0].collect(),params.ref)
+		Kallisto_single_end(params.ref, samples_ch)
+		// gatk_vc(doSTAR.out[0], params.ref)
 
   	}
 
-  	Vep(gatk_vc.out)
+  	// Vep(gatk_vc.out)
   	multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
   }
 
