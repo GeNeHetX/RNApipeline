@@ -33,13 +33,13 @@ Channel.fromList(file(params.sampleList).readLines())
           buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
           doSTAR(buildref.out, samples_ch)
           FCounts(doSTAR.out[0].collect(),buildref.out)
-          Kallisto_paired_end(buildref.out, samples_ch)
+          KallistoPE(buildref.out, samples_ch)
           gatk_vc(doSTAR.out[0], buildref.out)
         }
         else {
           doSTAR(params.ref, samples_ch)
           FCounts(doSTAR.out[0].collect(),params.ref)
-          Kallisto_paired_end(params.ref, samples_ch)
+          KallistoPE(params.ref, samples_ch)
           gatk_vc(doSTAR.out[0], params.ref)
         }
         Vep(gatk_vc.out)
