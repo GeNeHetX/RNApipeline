@@ -11,7 +11,7 @@ Channel.fromList(file(params.sampleList).readLines())
 
   include {doSTAR; FCounts; multiqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
   include {gatk_vc;Vep} from './modules/variant_calling.nf'
-  include {Kallisto_paired_end} from './modules/kallisto.nf'
+  include {KallistoPE} from './modules/kallisto.nf'
   include {buildref} from './modules/index.nf'
 
 
