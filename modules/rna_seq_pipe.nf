@@ -45,8 +45,6 @@ process doOnlySTARnCount {
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax
 
-
-
 		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
 
 		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
@@ -62,20 +60,25 @@ process doOnlySTARnCount {
 
 process doSTAR {
 
+	publishDir "${params.outputdir}/Unmapped_reads", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
+
 	input :
-
-
 	path index
 	tuple val(sample), file(fqFile)
 
 
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
-	path "*StarOutLog.final.out"
-	path "*_fastqc.{zip,html}"
+	path '*StarOutLog.final.out'
+	path '*_fastqc.{zip,html}'
+	// path '*.StarOutUnmapped.out.mate{1,2}', optional: true
+	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
 
+	when:
+	params.star == true
+	
 	"""
-
+	echo $fqFile
 	fastqc -t $task.cpus -q $fqFile
 
 	STAR --genomeDir $index \
@@ -97,11 +100,14 @@ process doSTAR {
 	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
 	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
-	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax
+	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
+	--outReadsUnmapped Fastx
 
+	# Compression et rename de Unmapped mate1 and mate 2 fastq
+    gzip -c ${sample}StarOutUnmapped.out.mate1 > Unmapped_${sample}_R1.fastq.gz
+    gzip -c ${sample}StarOutUnmapped.out.mate2 > Unmapped_${sample}_R2.fastq.gz
 
 	"""
-
 
 }
 
@@ -120,11 +126,13 @@ process FCounts {
 	path "exonscount.txt"
 	path "genecount.txt"
 
+	when:
+	params.fcounts == true
 
 	"""
 
-	featureCounts -T $task.cpus -F GTF -a  $index2/ref.gtf  -s $params.strand -O -o exonscount -f -t 'exon' -g 'exon_id' $allbams
-	featureCounts -T $task.cpus -F GTF -a  $index2/ref.gtf  -s $params.strand -O -o genecount -t 'exon' -g 'gene_id'  $allbams
+	featureCounts -T $task.cpus $params.featureCountP -F GTF -a  $index2/ref.gtf  -s $params.FeatureCountStrand -O -o exonscount -f -t 'exon' -g 'exon_id' $allbams
+	featureCounts -T $task.cpus $params.featureCountP -F GTF -a  $index2/ref.gtf  -s $params.FeatureCountStrand -O -o genecount -t 'exon' -g 'gene_id'  $allbams
 
 
 	awk 'NR>1' genecount > genecount.tab
@@ -149,6 +157,8 @@ process FCounts {
 	"""
 }
 
+// MultiQC = reporting tool to parse results and statistics from bioinformatic tools 
+// (to do at the end of the pipeline)
 process multiqc {
 	publishDir "${params.outputdir}/MULTIqc_output", mode: 'copy'
     input:
@@ -158,6 +168,9 @@ process multiqc {
     output:
     file "*.html"
     path "multiqc_data"
+
+	when:
+	multiqc == true
 
     script:
     """
