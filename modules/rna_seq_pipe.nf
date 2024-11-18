@@ -170,7 +170,7 @@ process multiqc {
     path "multiqc_data"
 
 	when:
-	multiqc == true
+	params.multiqc == true
 
     script:
     """
