@@ -10,25 +10,32 @@ process gatk_vc {
 	file "*.vcf" 
 	
 	when:
-	variant_calling == true
+	params.variant_calling == true
 
 	"""
-	##marking duplicates 
-	java -jar $params.picard  MarkDuplicates \
+	## 4)Sorting bams
+	java -jar $params.picard SortSam \
 		I= $bamfile\
-      		O=${bamfile.baseName}marked_duplicates.bam \
-      		M=${bamfile.baseName}marked_dup_metrics.txt && \
-      	java -jar $params.picard SortSam \
-      		I=${bamfile.baseName}marked_duplicates.bam\
-      		O=${bamfile.baseName}marked_duplicates_sorted.bam \
-      		SORT_ORDER=coordinate
+      	O=${bamfile.baseName}_sorted.bam \
+      	SORT_ORDER=coordinate
+
+	## 3') Alignement Summary step (CollectAlignmentSummaryMetrics et CollectInsertSizeMetrics)
+	## (TODO)
+
+	## MergeBamAlignment (voir si ça améliore la qualité ou pas)
+	## 5) Marking duplicates 
+	java -jar $params.picard  MarkDuplicates \
+		I= ${bamfile.baseName}_sorted.bam \
+      	O=${bamfile.baseName}marked_duplicates_sorted.bam \
+      	M=${bamfile.baseName}marked_dup_metrics.txt && \
  
-	##SplitNCigar 
+	## 6) SplitNCigar 
 	java -jar $params.gatk SplitNCigarReads \
       		-R $ref_data/ref.fa\
       		-I ${bamfile.baseName}marked_duplicates_sorted.bam\
       		-O ${bamfile.baseName}.split.bam 
-	##adding groups to reads 
+	
+	## 5') Adding groups to reads 
 	java -jar $params.picard AddOrReplaceReadGroups \
 		I= ${bamfile.baseName}.split.bam \
 		O= ${bamfile.baseName}.split.RG.bam\
@@ -37,7 +44,7 @@ process gatk_vc {
 		RGPU=unit1 \
 		RGSM=1 
 	
-	##BaseRecalibrator 
+	## 7) BaseRecalibrator + ApplyBQSR
 	java -jar $params.gatk BaseRecalibrator \
 	  	-I ${bamfile.baseName}.split.RG.bam\
 	  	-R $ref_data/ref.fa  \
@@ -45,19 +52,27 @@ process gatk_vc {
 	  	--use-jdk-inflater true \
 	  	--use-jdk-deflater true \
 	  	-O ${bamfile.baseName}.split.RG.recal.data.table
-	##ApplyBQSR
 	java -jar $params.gatk ApplyBQSR \
 		-R $ref_data/ref.fa \
 		-I ${bamfile.baseName}.split.RG.bam \
 		--bqsr-recal-file ${bamfile.baseName}.split.RG.recal.data.table\
 		-O ${bamfile.baseName}.abqsr.bam
-	
+	## AnalyzeCovariates (Evaluate and compare base quality score recalibration (BQSR) tables)
+	## (Optional)
+
+	## 8) BedToIntervalList (Bed réduit sur exons)
+	## 9) INtervalListTools
+
+	## 10) HaplotypeCaller
 	java -jar $params.gatk HaplotypeCaller  \
    	-R $ref_data/ref.fa \
    	-I ${bamfile.baseName}.abqsr.bam\
    	-O ${bamfile.SimpleName}.vcf \
    	-bamout ${bamfile.SimpleName}.bamout.bam
 
+	## 11) MergeVCFs (si parallelisation utile)
+	## 12) Tabix (voir si c'est utile)
+	## 13) VariantFiltration (fonction conditionnel)
 	"""
 }
 
@@ -72,16 +87,15 @@ process Vep{
 	path vcf 
 	
 	output: 
-	path "*_annot.tab"
+	path "*_annot.vcf"
+	//path "*_annot.tab"
 	
 	when:
-	variant_calling == true
+	params.vep == true
 	
 	script: 
 	"""
-	vep -i $vcf -o ${vcf.baseName}_annot.tab --offline --cache --dir_cache /opt/vep/.vep --sift p,s,b --variant_class --nearest gene --gene_phenotype --hgvs --protein --symbol --canonical --mane  --var_synonyms --tab 
-
-
+	vep -i $vcf -o ${vcf.baseName}_annot.vcf --vcf --offline --cache --dir_cache ${params.vep_cache} --sift p,s,b --variant_class --gene_phenotype --hgvs --protein --symbol --canonical --mane
 	"""
 }
 
