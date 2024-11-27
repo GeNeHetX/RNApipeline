@@ -9,40 +9,45 @@ Channel.fromList(file(params.sampleList).readLines())
   .set { samples_ch }
 
 
-  include {doSTAR; FCounts; multiqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
+  include {doSTAR; FCounts; multiqc; fastqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
   include {gatk_vc;Vep} from './modules/variant_calling.nf'
   include {KallistoPE} from './modules/kallisto.nf'
   include {buildref} from './modules/index.nf'
 
+log.info """\
+RNAPIPE FULL PAIRED END - NF V1.6.0
+===================================
+genome : ${params.ref}
+fastq : ${params.sampleInputDir}
+results outputdir : ${params.outputdir}
+run star: ${params.star}
+run fcounts: ${params.fcounts}
+run kallisto: ${params.kallisto}
+run multiqc: ${params.multiqc}
+run variant calling: ${params.variant_calling}
+"""
 
   workflow {
 
-    if(params.simpleCount){
-      if(params.ref== "no_ref" ){
+    if(params.ref=="no_ref") {
         buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
-        doOnlySTARnCount(buildref.out, samples_ch)
+        fastqc(samples_ch)
+        doSTAR(buildref.out, samples_ch)
+        FCounts(doSTAR.out[0].collect(),buildref.out)
+        KallistoPE(buildref.out, samples_ch)
+        gatk_vc(doSTAR.out[0], buildref.out)
       }
-      else {
-        doOnlySTARnCount(params.ref, samples_ch)
-      }
-
-      // multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
-
-      }else{
-        if(params.ref=="no_ref") {
-          buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
-          doSTAR(buildref.out, samples_ch)
-          FCounts(doSTAR.out[0].collect(),buildref.out)
-          KallistoPE(buildref.out, samples_ch)
-          gatk_vc(doSTAR.out[0], buildref.out)
-        }
-        else {
-          doSTAR(params.ref, samples_ch)
-          FCounts(doSTAR.out[0].collect(),params.ref)
-          KallistoPE(params.ref, samples_ch)
-          gatk_vc(doSTAR.out[0], params.ref)
-        }
-        Vep(gatk_vc.out)
-        multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
-      }
+    else {
+      fastqc(samples_ch)
+      doSTAR(params.ref, samples_ch)
+      FCounts(doSTAR.out[0].collect(),params.ref)
+      KallistoPE(params.ref, samples_ch)
+      gatk_vc(doSTAR.out[0], params.ref)
     }
+
+    //Annotation with VEP
+    Vep(gatk_vc.out)
+
+    //Agregate quality results
+    multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
+  }

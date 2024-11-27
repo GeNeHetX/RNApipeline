@@ -1,4 +1,3 @@
-
 nextflow.enable.dsl=2
 
 
@@ -57,6 +56,23 @@ process doOnlySTARnCount {
 
 }
 
+process fastqc {
+	
+	input :
+	tuple val(sample), file(fqFile)
+
+	output:
+	path '*_fastqc.{zip,html}'
+
+	//when:
+	//params.star == true
+	
+	script:
+	"""
+	echo $fqFile
+	fastqc -t $task.cpus -q $fqFile
+	"""
+}
 
 process doSTAR {
 
@@ -70,16 +86,14 @@ process doSTAR {
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path '*StarOutLog.final.out'
-	path '*_fastqc.{zip,html}'
-	// path '*.StarOutUnmapped.out.mate{1,2}', optional: true
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
+	// path '*_fastqc.{zip,html}'
 
 	when:
 	params.star == true
 	
+	script:
 	"""
-	echo $fqFile
-	fastqc -t $task.cpus -q $fqFile
 
 	STAR --genomeDir $index \
 	--readFilesIn $fqFile\
