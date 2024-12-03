@@ -22,7 +22,7 @@ process KallistoPE {
 	"""
 
 
-	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} $params.kallistoStrand -o "${Sample}" ${fastqFile}
+	kallisto quant  -i $idx/kallisto_index -t ${task.cpus} $params.kallistoStrand -o "${Sample}" ${fastqFile}
 
 
 	"""
