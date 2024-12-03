@@ -9,7 +9,7 @@ Channel.fromList(file(params.sampleList).readLines())
   .set { samples_ch }
 
 
-  include {doSTAR; FCounts; multiqc; fastqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
+  include {doSTAR; samtools_index; FCounts; multiqc; fastqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
   include {gatk_vc;Vep} from './modules/variant_calling.nf'
   include {KallistoPE} from './modules/kallisto.nf'
   include {buildref} from './modules/index.nf'
@@ -20,6 +20,7 @@ RNAPIPE FULL PAIRED END - NF V1.6.0
 genome : ${params.ref}
 fastq : ${params.sampleInputDir}
 results outputdir : ${params.outputdir}
+
 run star: ${params.star}
 run fcounts: ${params.fcounts}
 run kallisto: ${params.kallisto}
@@ -40,13 +41,16 @@ run variant calling: ${params.variant_calling}
     else {
       fastqc(samples_ch)
       doSTAR(params.ref, samples_ch)
+      samtools_index(doSTAR.out[0].collect())
       FCounts(doSTAR.out[0].collect(),params.ref)
       KallistoPE(params.ref, samples_ch)
       gatk_vc(doSTAR.out[0], params.ref)
     }
-
-    //Annotation with VEP
-    Vep(gatk_vc.out)
+    
+    // VCF annotation with VEP
+    if (params.variant_calling == true){
+      Vep(gatk_vc.out)
+    }
 
     //Agregate quality results
     multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())

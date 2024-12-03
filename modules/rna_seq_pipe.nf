@@ -64,13 +64,30 @@ process fastqc {
 	output:
 	path '*_fastqc.{zip,html}'
 
-	//when:
-	//params.star == true
+	when:
+	params.star == true
 	
 	script:
 	"""
 	echo $fqFile
 	fastqc -t $task.cpus -q $fqFile
+	"""
+}
+
+process samtools_index {
+	
+	input :
+	path bamFile
+
+	output:
+	path "${bamFile}.bai"
+	
+	when:
+	params.star == true
+	
+	script:
+	"""
+	samtools index ${bamFile}
 	"""
 }
 
@@ -87,7 +104,6 @@ process doSTAR {
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path '*StarOutLog.final.out'
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
-	// path '*_fastqc.{zip,html}'
 
 	when:
 	params.star == true
