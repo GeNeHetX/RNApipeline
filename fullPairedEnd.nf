@@ -49,7 +49,7 @@ run variant calling: ${params.variant_calling}
     
     // VCF annotation with VEP
     if (params.variant_calling == true){
-      Vep(gatk_vc.out)
+      Vep(gatk_vc.out, params.ref)
     }
 
     //Agregate quality results

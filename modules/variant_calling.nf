@@ -15,38 +15,38 @@ process gatk_vc {
 	"""
 	## 4)Sorting bams
 	java -jar $params.picard SortSam \
-		I= $bamfile\
-      	O=${bamfile.baseName}_sorted.bam \
-      	SORT_ORDER=coordinate
+		-I $bamfile\
+      	-O ${bamfile.baseName}_sorted.bam \
+      	-SORT_ORDER coordinate
 
 	## 3') Alignement Summary step (CollectAlignmentSummaryMetrics et CollectInsertSizeMetrics)
 	## (TODO)
 
+	## 5') Adding groups to reads 
+	java -jar $params.picard AddOrReplaceReadGroups \
+		-I ${bamfile.baseName}_sorted.bam \
+		-O ${bamfile.baseName}_sorted.RG.bam\
+		-RGLB lib2 \
+		-RGPL illumina \
+		-RGPU unit1 \
+		-RGSM 1 
+
 	## MergeBamAlignment (voir si ça améliore la qualité ou pas)
 	## 5) Marking duplicates 
 	java -jar $params.picard  MarkDuplicates \
-		I= ${bamfile.baseName}_sorted.bam \
-      	O=${bamfile.baseName}marked_duplicates_sorted.bam \
-      	M=${bamfile.baseName}marked_dup_metrics.txt && \
+		-I ${bamfile.baseName}_sorted.RG.bam\
+      	-O ${bamfile.baseName}_marked_duplicates_sorted.RG.bam \
+      	-M ${bamfile.baseName}_marked_dup_metrics.txt && \
  
 	## 6) SplitNCigar 
 	java -jar $params.gatk SplitNCigarReads \
       		-R $ref_data/ref.fa\
-      		-I ${bamfile.baseName}marked_duplicates_sorted.bam\
-      		-O ${bamfile.baseName}.split.bam 
-	
-	## 5') Adding groups to reads 
-	java -jar $params.picard AddOrReplaceReadGroups \
-		I= ${bamfile.baseName}.split.bam \
-		O= ${bamfile.baseName}.split.RG.bam\
-		RGLB=lib2 \
-		RGPL=illumina \
-		RGPU=unit1 \
-		RGSM=1 
+      		-I ${bamfile.baseName}_marked_duplicates_sorted.RG.bam\
+      		-O ${bamfile.baseName}_marked_duplicates_sorted.RG.split.bam 
 	
 	## 7) BaseRecalibrator + ApplyBQSR
 	java -jar $params.gatk BaseRecalibrator \
-	  	-I ${bamfile.baseName}.split.RG.bam\
+	  	-I ${bamfile.baseName}_marked_duplicates_sorted.RG.split.bam\
 	  	-R $ref_data/ref.fa  \
 	  	--known-sites $ref_data/knowns_variants.vcf \
 	  	--use-jdk-inflater true \
@@ -54,13 +54,19 @@ process gatk_vc {
 	  	-O ${bamfile.baseName}.split.RG.recal.data.table
 	java -jar $params.gatk ApplyBQSR \
 		-R $ref_data/ref.fa \
-		-I ${bamfile.baseName}.split.RG.bam \
+		-I ${bamfile.baseName}_marked_duplicates_sorted.RG.split.bam \
 		--bqsr-recal-file ${bamfile.baseName}.split.RG.recal.data.table\
 		-O ${bamfile.baseName}.abqsr.bam
 	## AnalyzeCovariates (Evaluate and compare base quality score recalibration (BQSR) tables)
 	## (Optional)
 
 	## 8) BedToIntervalList (Bed réduit sur exons)
+	java -jar $params.gatk BedToIntervalList \
+    -I $ref_data/ref.ExonsOnly.bed \
+    -O exons.interval_list \
+    -R $ref_data/ref.fa \
+    --SEQUENCE_DICTIONARY $ref_data/ref.dict
+	
 	## 9) INtervalListTools
 
 	## 10) HaplotypeCaller
@@ -85,6 +91,7 @@ process Vep{
 	
 	input: 
 	path vcf 
+	path ref_data
 	
 	output: 
 	path "*_annot.vcf"
@@ -95,7 +102,21 @@ process Vep{
 	
 	script: 
 	"""
-	vep -i $vcf -o ${vcf.baseName}_annot.vcf --vcf --offline --cache --dir_cache ${params.vep_cache} --sift p,s,b --variant_class --gene_phenotype --hgvs --protein --symbol --canonical --mane
+	vep -i $vcf \
+		-o ${vcf.baseName}_annot.vcf \
+		--vcf \
+		--fasta $ref_data/ref.fa \
+		--offline \
+		--cache \
+		--dir_cache ${params.vep_cache} \
+		--sift p,s,b \
+		--variant_class \
+		--gene_phenotype \
+		--hgvs \
+		--protein \
+		--symbol \
+		--canonical \
+		--mane
 	"""
 }
 
