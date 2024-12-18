@@ -2,6 +2,8 @@ nextflow.enable.dsl=2
 
 process gatk_vc {
 	publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
+	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	
 	input :
 	file bamfile 
 	path ref_data
@@ -10,14 +12,17 @@ process gatk_vc {
 	file "*.vcf" 
 	
 	when:
-	params.variant_calling == true
+	params.gatk4 == true
 
 	"""
+	## SET TMP WORKING DIRECTORY
+
 	## 4)Sorting bams
 	java -jar $params.picard SortSam \
 		-I $bamfile\
       	-O ${bamfile.baseName}_sorted.bam \
-      	-SORT_ORDER coordinate
+      	-SORT_ORDER coordinate \
+		--TMP_DIR $params.tmpdir
 
 	## 3') Alignement Summary step (CollectAlignmentSummaryMetrics et CollectInsertSizeMetrics)
 	## (TODO)
@@ -79,6 +84,8 @@ process gatk_vc {
 	## 11) MergeVCFs (si parallelisation utile)
 	## 12) Tabix (voir si c'est utile)
 	## 13) VariantFiltration (fonction conditionnel)
+
+	rm -rf ${params.tmpdir}/*
 	"""
 }
 
@@ -89,9 +96,12 @@ process Vep{
 
 	publishDir "${params.outputdir}/VEP_output", mode: 'copy'
 	
+	container 'quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0'
+	
 	input: 
 	path vcf 
 	path ref_data
+	val suffix
 	
 	output: 
 	path "*_annot.vcf"
@@ -103,7 +113,7 @@ process Vep{
 	script: 
 	"""
 	vep -i $vcf \
-		-o ${vcf.baseName}_annot.vcf \
+		-o ${vcf.baseName}_${suffix}_annot.vcf \
 		--vcf \
 		--fasta $ref_data/ref.fa \
 		--offline \
