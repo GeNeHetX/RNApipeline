@@ -80,14 +80,14 @@ process samtools_index {
 	path bamFile
 
 	output:
-	path "${bamFile}.bai"
+	path "*.bai"
 	
 	when:
 	params.star == true
 	
 	script:
 	"""
-	samtools index ${bamFile}
+	samtools index -M ${bamFile}
 	"""
 }
 
