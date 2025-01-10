@@ -1,6 +1,5 @@
 nextflow.enable.dsl=2
 
-
 process doOnlySTARnCount {
 
 	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
@@ -57,7 +56,8 @@ process doOnlySTARnCount {
 }
 
 process fastqc {
-	
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
+
 	input :
 	tuple val(sample), file(fqFile)
 
@@ -94,6 +94,7 @@ process samtools_index {
 process doSTAR {
 
 	publishDir "${params.outputdir}/Unmapped_reads", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy', pattern: "*StarOutLog.final.out"
 
 	input :
 	path index
@@ -142,49 +143,47 @@ process doSTAR {
 }
 
 process FCounts {
-	publishDir "${params.outputdir}/FeautureCounts_output", mode: 'copy'
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
 
 	input:
-	path allbams
-	path index2
-
+	path bam
+	path index
+	tuple val(sample), file(fqFile)
 
 
 	output:
-	path "exonscount_QC.txt"
-	path "genecount_QC.txt"
-	path "exonscount.txt"
-	path "genecount.txt"
+	//path "exonscount_QC.txt"
+	//path "genecount_QC.txt"
+	path "*exonscount.txt"
+	path "*genecount.txt"
 
 	when:
 	params.fcounts == true
 
 	"""
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
 
-	featureCounts -T $task.cpus $params.featureCountP -F GTF -a  $index2/ref.gtf  -s $params.FeatureCountStrand -O -o exonscount -f -t 'exon' -g 'exon_id' $allbams
-	featureCounts -T $task.cpus $params.featureCountP -F GTF -a  $index2/ref.gtf  -s $params.FeatureCountStrand -O -o genecount -t 'exon' -g 'gene_id'  $allbams
-
-
-	awk 'NR>1' genecount > genecount.tab
-	(head -n 1 genecount.tab && tail -n +2 genecount.tab | sort -d ) > genecount1.tab
-	sort -d $index2/geneInfo.tab >geneinfos.tab
-	awk 'NR>1' geneinfos.tab > geneinfos1.tab
-	awk 'BEGIN { print "GeneidReference\tGeneName\tGeneType" } { print }' geneinfos1.tab > geneinfos2.tab
-	paste -d geneinfos2.tab genecount1.tab > genecount_matrix.tab
-
-	mv exonscount.summary exonscount_QC1.txt
-	mv genecount.summary genecount_QC1.txt
-	mv exonscount exonscount1.txt
-	mv genecount_matrix.tab genecount1.txt
-
-
-	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount_QC1.txt > exonscount_QC.txt
-	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount_QC1.txt > genecount_QC.txt
-	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "GeneId");print}' > genecount.txt
-	awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "ExonId");print}' > exonscount.txt
-
-
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id' $bam
+	
 	"""
+
+	// awk 'NR>1' genecount > genecount.tab
+	// (head -n 1 genecount.tab && tail -n +2 genecount.tab | sort -d ) > genecount1.tab
+	// sort -d $index/geneInfo.tab >geneinfos.tab
+	// awk 'NR>1' geneinfos.tab > geneinfos1.tab
+	// awk 'BEGIN { print "GeneidReference\tGeneName\tGeneType" } { print }' geneinfos1.tab > geneinfos2.tab
+	// paste -d geneinfos2.tab genecount1.tab > genecount_matrix.tab
+
+	// mv exonscount.summary exonscount_QC1.txt
+	// mv genecount.summary genecount_QC1.txt
+	// mv exonscount exonscount1.txt
+	// mv genecount_matrix.tab genecount1.txt
+
+
+	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount_QC1.txt > exonscount_QC.txt
+	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount_QC1.txt > genecount_QC.txt
+	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "GeneId");print}' > genecount.txt
+	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "ExonId");print}' > exonscount.txt
 }
 
 // MultiQC = reporting tool to parse results and statistics from bioinformatic tools 
