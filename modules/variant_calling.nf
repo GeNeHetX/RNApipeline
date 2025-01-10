@@ -113,6 +113,7 @@ process Vep{
 	script: 
 	"""
 	vep -i $vcf \
+		--format vcf \
 		-o ${vcf.baseName}_${suffix}_annot.vcf \
 		--vcf \
 		--fasta $ref_data/ref.fa \
