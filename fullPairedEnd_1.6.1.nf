@@ -48,32 +48,31 @@ run multiqc: ${params.multiqc}
     else {
       fastqc(samples_ch)
       doSTAR(params.ref, samples_ch)
-      samtools_index(doSTAR.out[0])
+      samtools_index(doSTAR.out.bam4bai)
       KallistoPE(params.ref, samples_ch)
-    }
-    
-    if (params.fcounts == true){
-      FCounts(doSTAR.out[0],params.ref, samples_ch)
-    }
+      if (params.fcounts == true){
+        FCounts(doSTAR.out[0],params.ref, samples_ch)
+      }
 
-    // VC with gatk4 + vep
-    if (params.gatk4 == true){
-      gatk_vc(doSTAR.out[0], params.ref)
-      Vep_gatk(gatk_vc.out, params.ref,"gatk4")
-    }
+      // VC with gatk4 + vep
+      if (params.gatk4 == true){
+        gatk_vc(doSTAR.out[0], params.ref)
+        Vep_gatk(gatk_vc.out, params.ref,"gatk4")
+      }
 
-    // VC with mpileup + vep
-    if (params.mpileup == true){
-      bcftools_mpileup(doSTAR.out[0], samtools_index.out ,params.ref, params.bed)
-      Vep_mpileup(bcftools_mpileup.out[1], params.ref,"mpileup")
-    }
+      // VC with mpileup + vep
+      if (params.mpileup == true){
+        bcftools_mpileup(samtools_index.out.align_files , params.ref, params.bed)
+        Vep_mpileup(bcftools_mpileup.out[1], params.ref,"mpileup")
+      }
 
-    // VC with deepvariant + vep
-    if (params.deepvariant == true){
-      Mosdepth(doSTAR.out[0],samtools_index.out[0],samples_ch)
-      Bedtools(Mosdepth.out[0],samples_ch)
-      Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], params.ref, params.modelckptdeepar)
-      Vep_deepvariant(Deepvariant.out, params.ref,"deepvariant")
+      // VC with deepvariant + vep
+      if (params.deepvariant == true){
+        Mosdepth(doSTAR.out[0],samtools_index.out[0],samples_ch)
+        Bedtools(Mosdepth.out[0],samples_ch)
+        Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], params.ref, params.modelckptdeepar)
+        Vep_deepvariant(Deepvariant.out, params.ref,"deepvariant")
+      }
     }
     
     //Agregate quality results

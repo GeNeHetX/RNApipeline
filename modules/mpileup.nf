@@ -6,8 +6,7 @@ process bcftools_mpileup{
 	container 'quay.io/biocontainers/bcftools:1.21--h3a4d415_1'
 	
 	input: 
-	path bam
-	path bai
+	tuple val(sample), path(bam),path (bai)
 	path ref
 	path regions_bed
 	

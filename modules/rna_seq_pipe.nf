@@ -69,7 +69,7 @@ process fastqc {
 	
 	script:
 	"""
-	echo $fqFile
+	#echo $fqFile
 	fastqc -t $task.cpus -q $fqFile
 	"""
 }
@@ -77,17 +77,17 @@ process fastqc {
 process samtools_index {
 	
 	input :
-	path bamFile
+	tuple val(sample), path(bamFile)
 
 	output:
-	path "*.bai"
+	tuple val(sample), path(bamFile), path ("${sample}*.bai"), emit : align_files
 	
 	when:
 	params.star == true
 	
 	script:
 	"""
-	samtools index -M ${bamFile}
+	samtools index -b ${bamFile} -o "${bamFile}.bai"
 	"""
 }
 
@@ -105,6 +105,7 @@ process doSTAR {
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path '*StarOutLog.final.out'
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
+	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
 	when:
 	params.star == true
