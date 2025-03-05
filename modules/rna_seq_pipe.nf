@@ -65,7 +65,7 @@ process fastqc {
 	path '*_fastqc.{zip,html}'
 
 	when:
-	params.star == true
+	params.fastqc == true
 	
 	script:
 	"""

@@ -84,7 +84,7 @@ process Deepvariant {
     path(model)
 
 	output: 
-    file("${sample}.output.vcf.gz")
+    tuple val(sample), file("${sample}.output.vcf.gz")
 
 
 	when:
