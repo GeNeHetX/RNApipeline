@@ -17,10 +17,11 @@ Channel.fromList(file(params.sampleList).readLines())
   include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
 
 log.info """\
-RNAPIPE FULL PAIRED END - NF V1.6.0
+RNAPIPE FULL PAIRED END - NF V1.6.1
 ===================================
 genome : ${params.ref}
-fastq : ${params.sampleInputDir}
+fastq path : ${params.sampleInputDir}
+samples list : ${params.sampleList}
 region bed : ${params.bed}
 results outputdir : ${params.outputdir}
 
@@ -56,14 +57,14 @@ run multiqc: ${params.multiqc}
 
       // VC with gatk4 + vep
       if (params.gatk4 == true){
-        gatk_vc(doSTAR.out[0], params.ref)
-        Vep_gatk(gatk_vc.out, params.ref,"gatk4")
+        gatk_vc(doSTAR.out.bam4bai, params.ref)
+        Vep_gatk(gatk_vc.out.vc_file, params.ref,"gatk4")
       }
 
       // VC with mpileup + vep
       if (params.mpileup == true){
         bcftools_mpileup(samtools_index.out.align_files , params.ref, params.bed)
-        Vep_mpileup(bcftools_mpileup.out[1], params.ref,"mpileup")
+        Vep_mpileup(bcftools_mpileup.out.vc_file, params.ref,"mpileup")
       }
 
       // VC with deepvariant + vep
