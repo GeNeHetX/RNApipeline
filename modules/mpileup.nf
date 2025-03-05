@@ -6,23 +6,24 @@ process bcftools_mpileup{
 	container 'quay.io/biocontainers/bcftools:1.21--h3a4d415_1'
 	
 	input: 
-	tuple val(sample), path(bam),path (bai)
+	tuple val(sample), path(bam), path(bai)
 	path ref
 	path regions_bed
 	
 	output: 
 	path "*.mpileup.gz"
 	path "*.bcftools.vcf.gz"
+	tuple val(sample), path("*.bcftools.vcf.gz"), emit:vc_file
 	
 	when:
 	params.mpileup == true
 	
 	script: 
 	"""
-	bcftools mpileup -f ${ref}"/ref.fa" ${bam} -R ${regions_bed} -d 500 >  "${bam.baseName}.mpileup"
-	bcftools call  "${bam.baseName}.mpileup" -cv -p ${params.pval} -Ov -o "${bam.baseName}.bcftools.vcf"
+	bcftools mpileup -f ${ref}"/ref.fa" ${bam} -R ${regions_bed} -d 500 >  "${sample}.mpileup"
+	bcftools call  "${sample}.mpileup" -cv -p ${params.pval} -Ov -o "${sample}.bcftools.vcf"
 	
-	gzip "${bam.baseName}.mpileup"
-	gzip "${bam.baseName}.bcftools.vcf"
+	gzip "${sample}.mpileup"
+	gzip "${sample}.bcftools.vcf"
 	"""
 }
