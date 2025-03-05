@@ -79,6 +79,9 @@ singularity exec genehetx-rnaseq_v1.6.0.sif java -jar /usr/local/gatk-4.6.1.0/ga
 ##parsing a gtf file in order to get exon informations (needed for featureCount output analysis)
 awk -F "\t" '$3 == "exon" { print $4"\t"$5"\t"$7"\t"$9 }' ref.gtf |awk '{for(i=5;i<=NF;i++){if($i~/^"ENSE/){a=$i}} print a, $1,$2,$3,$5,$15}'| sed 's/\"//g'|sed 's/\;//g'| sort -d | awk 'BEGIN {print "exon_id\tstart\tend\tstrand\tgene_id\tgene_name"} { print }' > Exon_gtf_info.tab
 
+###
+#Rajouter ref.ExonOnly.gtf pour BedInterval
+###
 
 grep -P "\tgene\t" ref.gtf > ref.GeneLvlOnly.gtf
 path_Rscript=$(which Rscript)
