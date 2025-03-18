@@ -108,11 +108,11 @@ process samtools_depth{
 	script:
 	if (params.no_multimapped == true)
 		"""
-		samtools depth -b $bedfile $bamFile -Q 255 -o ${sample}_depth.txt
+		samtools depth -a -b $bedfile $bamFile -Q 255 -o ${sample}_depth.txt
 		"""
 	else if (params.no_multimapped == false)
 		"""
-		samtools depth -b $bedfile $bamFile -Q 0 -o ${sample}_depth.txt
+		samtools depth -a -b $bedfile $bamFile -Q 0 -o ${sample}_depth.txt
 		"""
 }
 
