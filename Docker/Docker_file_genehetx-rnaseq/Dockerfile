@@ -1,51 +1,62 @@
 FROM ubuntu:latest
-MAINTAINER REMY NICOLLE  <remy.nicolle@inserm.fr>
-### Install jdk8
+MAINTAINER LUCIE GOMES  <lucie.gomes@inserm.fr>
+
+# Installer les dépendances et outils nécessaires
 RUN apt-get update && \
- 	apt-get install --yes openjdk-8-jre-headless \
-	unzip libfindbin-libs-perl default-jre \
-	wget \
-	python3 \
-	python3-dev \
-	python3-pip \
-	rna-star \
-	subread \
-	samtools \
-	kallisto \
-  curl \
-	&& 	pip3 install "multiqc==1.12" \
-	&&  curl -s https://get.nextflow.io | bash \
-	&& 	mkdir /data
+    apt-get install -y \
+    build-essential \
+	openjdk-21-jdk \
+    wget \
+    zlib1g-dev \
+    libbz2-dev \ 
+    libcurl4-openssl-dev \ 
+    liblzma-dev \
+    g++ \
+    git \
+    perl \
+    unzip \
+    libncurses5-dev \
+    libreadline-dev \
+    vim-common \
+    && rm -rf /var/lib/apt/lists/*
 
+# Télécharger, extraire, compiler et installer STAR en une seule commande RUN
+RUN wget https://github.com/alexdobin/STAR/archive/2.7.11b.tar.gz -O /tmp/STAR-2.7.11b.tar.gz && \
+    tar -xzvf /tmp/STAR-2.7.11b.tar.gz -C /tmp && \
+    cd /tmp/STAR-2.7.11b/source && \
+    echo "Starting compilation..." && \
+    make STAR && \
+    if [ $? -ne 0 ]; then echo "STAR Make failed"; exit 1; fi && \
+    cp /tmp/STAR-2.7.11b/source/STAR /usr/local/bin/ && \
+    rm -rf /tmp/STAR-2.7.11b.tar.gz /tmp/STAR-2.7.11b && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-404.0.0-linux-x86_64.tar.gz \
-  && tar -xf google-cloud-cli-404.0.0-linux-x86_64.tar.gz \
-  && ./google-cloud-sdk/install.sh -q   --rc-path /root/.bashrc
+# Télécharger, extraire, compiler et installer Samtools en une seule commande RUN
+RUN wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.21.tar.bz2 -O /tmp/samtools-1.21.tar.bz2 && \
+    tar -xjf /tmp/samtools-1.21.tar.bz2 -C /tmp && \
+    cd /tmp/samtools-1.21 && \
+    echo "Starting Samtools compilation..." && \
+    make && \
+    if [ $? -ne 0 ]; then echo "Samtools Make failed"; exit 1; fi && \
+    cp /tmp/samtools-1.21/samtools /usr/local/bin/ && \
+    rm -rf /tmp/samtools-1.21.tar.bz2 /tmp/samtools-1.21 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-###INSTALL FASTQC
-ENV SA=Europe/Paris
+# Télécharger et installer Picard
+RUN wget -O /usr/local/bin/picard.jar https://github.com/broadinstitute/picard/releases/download/3.3.0/picard.jar && \
+    chmod +x /usr/local/bin/picard.jar && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV FASTQC_url http://www.bioinformatics.babraham.ac.uk/projects/fastqc
-ARG DEBIAN_FRONTEND=noninteractive
+# Télécharger et installer GATK
+RUN wget https://github.com/broadinstitute/gatk/releases/download/4.6.1.0/gatk-4.6.1.0.zip -O /tmp/gatk-4.6.1.0.zip && \
+    unzip /tmp/gatk-4.6.1.0.zip -d /usr/local/ && \
+    rm /tmp/gatk-4.6.1.0.zip && \
+    ln -s /usr/local/gatk-4.6.1.0/gatk /usr/local/bin/gatk && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-
-WORKDIR /usr/local
-ADD ${FASTQC_url}/fastqc_v0.11.9.zip /tmp/
-RUN unzip /tmp/fastqc_v0.11.9.zip && sed -i 's/Xmx250m/Xmx2048m/' FastQC/fastqc && chmod 755 FastQC/fastqc
-ENV PATH /usr/local/FastQC/:$PATH
-
-
-
+# Définir le répertoire de travail par défaut
 WORKDIR /data
-###install picard tools
-RUN wget -O picard.jar https://github.com/broadinstitute/picard/releases/download/2.26.2/picard.jar \
-   && wget  https://github.com/broadinstitute/gatk/releases/download/4.2.5.0/gatk-4.2.5.0.zip  \
-   && unzip gatk-4.2.5.0.zip \
-   && sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
-
-# And clean up
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
-
-
-# docker build --rm . -t genehetx/genehetx-rnaseq:latest
-# docker push genehetx/genehetx-rnaseq:latest

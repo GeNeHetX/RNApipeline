@@ -15,9 +15,10 @@ Channel.fromList(file(params.sampleList).readLines())
   include {remove_multimapped_reads; bcftools_mpileup} from './modules/mpileup.nf'
   include {buildref} from './modules/index.nf'
   include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
+  include {UMItools_extract} from './modules/UMI.nf' //UMItools_dedup
 
 log.info """\
-RNAPIPE FULL PAIRED END - NF V1.6.2
+RNAPIPE FULL PAIRED END - NF V1.6.3
 ===================================
 genome : ${params.ref}
 fastq path : ${params.sampleInputDir}
@@ -37,6 +38,10 @@ remove multimapped: ${params.no_multimapped}
 run vep: ${params.vep}
 run multiqc: ${params.multiqc}
 """
+
+workflow RNApipe_with_UMI {
+  
+}
 
   workflow {
 
@@ -59,6 +64,11 @@ run multiqc: ${params.multiqc}
 
       if (params.samtools_depth == true){
         samtools_depth(doSTAR.out.bam4bai, params.bed)
+      }
+
+      if (params.UMI == true){
+        UMItools_extract(samples_ch)
+        UMItools_dedup(doSTAR.out.bam4bai)
       }
 
       // VC with gatk4 + vep
