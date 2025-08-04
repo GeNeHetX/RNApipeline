@@ -1,3 +1,24 @@
+process remove_multimapped_reads{
+	
+	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	
+	input: 
+	tuple val(sample), path(bam), path(bai)
+	
+	output: 
+	tuple val(sample), path("${sample}_STAR_filtered.bam"), path("${sample}_STAR_filtered.bam.bai"), emit:filtered_bam
+	
+	when:
+	params.mpileup == true
+	params.no_multimapped == true
+
+	script:
+	"""
+	samtools view -h -q 255 -b $bam > ${sample}_STAR_filtered.bam
+    samtools index -b ${sample}_STAR_filtered.bam -o ${sample}_STAR_filtered.bam.bai
+	"""
+}
+
 process bcftools_mpileup{
 
 	publishDir "${params.outputdir}/mpileup_output/mpileup_file", mode: 'copy', pattern: '*.mpileup.gz'
@@ -17,7 +38,7 @@ process bcftools_mpileup{
 	
 	when:
 	params.mpileup == true
-	
+
 	script: 
 	"""
 	bcftools mpileup -f ${ref}"/ref.fa" ${bam} -R ${regions_bed} -d 500 >  "${sample}.mpileup"

@@ -91,6 +91,32 @@ process samtools_index {
 	"""
 }
 
+process samtools_depth{
+
+	publishDir "${params.outputdir}/Samtools_depth", mode: 'copy', pattern: "${sample}_depth.txt"
+
+	input:
+	tuple val(sample), file(bamFile)
+	path bedfile
+
+	output:	
+	path "${sample}_depth.txt"
+
+	when:
+	params.samtools_depth == true
+
+	script:
+	if (params.no_multimapped == true)
+		"""
+		samtools depth -a -b $bedfile $bamFile -Q 255 -o ${sample}_depth.txt
+		"""
+	else if (params.no_multimapped == false)
+		"""
+		samtools depth -a -b $bedfile $bamFile -Q 0 -o ${sample}_depth.txt
+		"""
+}
+
+
 process doSTAR {
 
 	publishDir "${params.outputdir}/Unmapped_reads", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
