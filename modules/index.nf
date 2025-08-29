@@ -33,7 +33,7 @@ process buildref{
 	##create an  samtools index (needed for GATK4)
 	samtools faidx ref.fa
 	##kallisto index 
-	kallisto index -i kalliso_index cdna.fa
+	kallisto index -i kallisto_index cdna.fa
 	##you should specify the path to your picard.jar file
 	java -jar $params.picard CreateSequenceDictionary R= ref.fa O= ref.dict
 	java -jar $params.gatk IndexFeatureFile -I knowns_variants.vcf
@@ -43,7 +43,7 @@ process buildref{
 	mv knowns_variants.vcf  refdata/knowns_variants.vcf 
 	mv knowns_variants.vcf.idx refdata/knowns_variants.vcf.idx
 	mv ref.fa refdata/ref.fa
-	mv kalliso_index refdata/kalliso_index
+	mv kallisto_index refdata/kallisto_index
 	mv cdna.fa refdata/cdna.fa
 	
 	STAR --runThreadN 16 --runMode genomeGenerate --genomeDir refdata --genomeFastaFiles refdata/ref.fa  --sjdbOverhang 100 --sjdbGTFfile refdata/ref.gtf  --genomeSAindexNbases 11 
