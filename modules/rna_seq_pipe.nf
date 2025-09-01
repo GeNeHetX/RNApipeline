@@ -1,6 +1,4 @@
-
 nextflow.enable.dsl=2
-
 
 process doOnlySTARnCount {
 
@@ -59,6 +57,41 @@ process doOnlySTARnCount {
 
 }
 
+process fastqc {
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
+
+	input :
+	tuple val(sample), file(fqFile)
+
+	output:
+	path '*_fastqc.{zip,html}'
+
+	when:
+	params.fastqc == true
+	
+	script:
+	"""
+	#echo $fqFile
+	fastqc -t $task.cpus -q $fqFile
+	"""
+}
+
+process samtools_index {
+	
+	input :
+	tuple val(sample), path(bamFile)
+
+	output:
+	tuple val(sample), path(bamFile), path ("${sample}*.bai"), emit : align_files
+	
+	when:
+	params.star == true
+	
+	script:
+	"""
+	samtools index -b ${bamFile} -o "${bamFile}.bai"
+	"""
+}
 
 process doSTAR {
 	publishDir "${params.outputdir}/Unmapped_reads", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
@@ -72,7 +105,7 @@ process doSTAR {
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path "*StarOutLog.final.out"
-	path "*_fastqc.{zip,html}"
+	//path "*_fastqc.{zip,html}"
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
@@ -80,7 +113,7 @@ process doSTAR {
 	script:	
 	"""
 
-	fastqc -t $task.cpus -q $fqFile
+	# fastqc -t $task.cpus -q $fqFile
 
 	STAR --genomeDir $index \
 	--readFilesIn $fqFile\

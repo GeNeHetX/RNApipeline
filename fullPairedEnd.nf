@@ -2,14 +2,17 @@
 nextflow.enable.dsl=2
 
 params.featureCountP=" -p "
-params.simpleCount = false
+//params.simpleCount = false
 
- 
-include {doSTAR; FCounts; multiqc; doOnlySTARnCount} from './modules/rna_seq_pipe.nf'
-include {gatk_vc;Vep} from './modules/variant_calling.nf'
+
+include {doSTAR; FCounts; multiqc; doOnlySTARnCount; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
+include {gatk_vc; Vep as Vep_gatk; Vep as Vep_deepvariant; Vep as Vep_mpileup} from './modules/variant_calling.nf'
+include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
+include {bcftools_mpileup} from './modules/mpileup.nf'
 include {KallistoPE} from './modules/kallisto.nf'
 include {buildref} from './modules/index.nf'
 include {Create_md5; Verify_md5; Check_samples; Check_process} from './modules/check_prepost_pipeline.nf'
+
 
 workflow Analysis_PE{
     take: 
@@ -18,38 +21,51 @@ workflow Analysis_PE{
       fastqDir
     
     main:
-      if(params.simpleCount){
+        
+      if(params.ref=="no_ref") {
+        buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
+        fastqc(samples_ch)
+        doSTAR(buildref.out, samples_ch)
+        FCounts(doSTAR.out[0], buildref.out, samples_ch)
+        KallistoPE(buildref.out, samples_ch)
+        gatk_vc(doSTAR.out.bam4bai, buildref.out)
+      }
+      else {
+        fastqc(samples_ch)
+        doSTAR(params.ref, samples_ch)
+        samtools_index(doSTAR.out.bam4bai)
+        KallistoPE(params.ref, samples_ch)
 
-        if(params.ref== "no_ref" ){
-          buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
-          doOnlySTARnCount(buildref.out, samples_ch)
-        }
-        else {
-          doOnlySTARnCount(params.ref, samples_ch)
+        if (params.fcounts == true){
+          FCounts(doSTAR.out[0],params.ref, samples_ch)
         }
 
-        multiqc(doOnlySTARnCount.out[2].mix(doOnlySTARnCount.out[1]).collect())
-
-        }else{
-          if(params.ref=="no_ref") {
-            buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
-            doSTAR(buildref.out, samples_ch)
-            FCounts(doSTAR.out[0].collect(),buildref.out)
-            KallistoPE(buildref.out, samples_ch)
-            gatk_vc(doSTAR.out[0], buildref.out)
-          }
-          else {
-            doSTAR(params.ref, samples_ch)
-            if (params.fcounts == true){
-              FCounts(doSTAR.out[0],params.ref, samples_ch)
-            }
-            KallistoPE(params.ref, samples_ch)
-            gatk_vc(doSTAR.out[0], params.ref)
-          }
-          Vep(gatk_vc.out)
-          multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
+        // VC with gatk4 + vep
+        if (params.gatk4 == true){
+          gatk_vc(doSTAR.out.bam4bai, params.ref)
+          Vep_gatk(gatk_vc.out.vc_file, params.ref,"gatk4")
         }
-    
+
+        // VC with mpileup + vep
+        if (params.mpileup == true){
+          bcftools_mpileup(samtools_index.out.align_files , params.ref, params.bed)
+          Vep_mpileup(bcftools_mpileup.out.vc_file, params.ref,"mpileup")
+        }
+
+        // VC with deepvariant + vep
+        if (params.deepvariant == true){
+          Mosdepth(doSTAR.out[0],samtools_index.out[0],samples_ch)
+          Bedtools(Mosdepth.out[0],samples_ch)
+          Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], params.ref, params.modelckptdeepar)
+          Vep_deepvariant(Deepvariant.out, params.ref,"deepvariant")
+        }
+       
+      }
+      //Agregate quality results
+      if (params.multiqc == true){
+        multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
+      }
+
     emit:
       samples_ch
       qc_out = multiqc.out[1]
@@ -127,14 +143,20 @@ workflow Main {
               sequenceID : params.runNumber,
               samples    : names,
               region_bed : params.bed,
+              fastq_path : params.sampleInputDir,
               outputdir  : params.outputdir,
               scriptDir  : params.scriptDir,
               routine    : params.routine,
-              run_star   : params.starcount,
-              run_fastqc : params.starcount,
+              run_star   : params.star,
+              run_fastqc : params.fastqc,
               run_fcounts: params.fcounts,
               run_kallisto: params.kallisto,
-              run_multiqc: params.multiqc
+              run_multiqc: params.multiqc,
+              run_gatk   : params.gatk4,
+              run_deepvar: params.deepvariant,
+              run_mpileup: params.mpileup,
+              run_vep    : params.vep
+
             ]
             def outFile = new File("${params.outputdir}/${params.runNumber}_pipeline_summary.json")
             outFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
