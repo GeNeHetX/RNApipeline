@@ -201,3 +201,28 @@ process multiqc {
     multiqc .
     """
 }
+
+process samtools_depth{
+
+	publishDir "${params.outputdir}/Samtools_depth", mode: 'copy', pattern: "*_depth.txt"
+
+	input:
+	tuple val(sample), file(bamFile)
+	path bedfile
+
+	output:	
+	path "*_depth.txt"
+
+	when:
+	params.samtools_depth == true
+
+	script:
+	if (params.no_multimapped == true)
+		"""
+		samtools depth -a -H -b $bedfile $bamFile -Q 255 -o ${sample}_q255_depth.txt
+		"""
+	else
+		"""
+		samtools depth -a -H -b $bedfile $bamFile -Q 0 -o ${sample}_q0_depth.txt
+		"""
+}

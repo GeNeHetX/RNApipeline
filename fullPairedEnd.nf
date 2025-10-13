@@ -5,7 +5,7 @@ params.featureCountP=" -p "
 //params.simpleCount = false
 
 
-include {doSTAR; FCounts; multiqc; doOnlySTARnCount; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
+include {doSTAR; FCounts; samtools_depth; multiqc; doOnlySTARnCount; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
 include {gatk_vc; Vep as Vep_gatk; Vep as Vep_deepvariant; Vep as Vep_mpileup} from './modules/variant_calling.nf'
 include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
 include {bcftools_mpileup} from './modules/mpileup.nf'
@@ -40,6 +40,13 @@ workflow Analysis_PE{
           FCounts(doSTAR.out[0],params.ref, samples_ch)
         }
 
+        if (params.samtools_depth == true){
+          samtools_depth(doSTAR.out.bam4bai, params.bed)
+        }
+        //if (params.samtools_depth == true){
+        //  samtools_depth(doSTAR.out[0].collect(), params.bed)
+        //}
+
         // VC with gatk4 + vep
         if (params.gatk4 == true){
           gatk_vc(doSTAR.out.bam4bai, params.ref)
@@ -62,9 +69,7 @@ workflow Analysis_PE{
        
       }
       //Agregate quality results
-      if (params.multiqc == true){
-        multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
-      }
+      multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 
     emit:
       samples_ch
@@ -151,7 +156,6 @@ workflow Main {
               run_fastqc : params.fastqc,
               run_fcounts: params.fcounts,
               run_kallisto: params.kallisto,
-              run_multiqc: params.multiqc,
               run_gatk   : params.gatk4,
               run_deepvar: params.deepvariant,
               run_mpileup: params.mpileup,
