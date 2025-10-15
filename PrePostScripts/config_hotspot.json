@@ -1,0 +1,28 @@
+{
+    "KRAS": {
+        "protein_hotspots": [
+        "p.Gly12Arg", "p.Gly12Ser", "p.Gly12Cys", "p.Gly12Asp", "p.Gly12Ala", "p.Gly12Val",
+        "p.Gly13Arg", "p.Gly13Cys", "p.Gly13Asp", "p.Gly13Val", "p.Gly60Ser",
+        "p.Gly60Arg", "p.Gly60Val", "p.Gln61Lys", "p.Gln61Leu", "p.Gln61His"
+        ],
+        "nucleotide_hotspots": [
+        "c.34G>C", "c.34G>A", "c.34G>T", "c.35G>A", "c.35G>C", "c.35G>T",
+        "c.37G>C", "c.37G>T", "c.38G>A", "c.38G>T", "c.178G>A", "c.178G>C",
+        "c.179G>T", "c.181C>A", "c.182A>T", "c.183A>T", "c.183A>C"
+        ],
+        "positions": ["25227341", "25227342", "25245346", "25245347", "25245349", "25245350", "25245351"]
+    },
+    "GNAS": {
+        "protein_hotspots": ["p.Arg201Cys", "p.Arg201His"],
+        "nucleotide_hotspots": ["c.602G>A", "c.601C>T"],
+        "positions": ["58909365", "58909366"]
+    },
+    "TP53": {
+        "protein_hotspots": [],
+        "nucleotide_hotspots": [],
+        "range": {
+        "start": 7674858,
+        "end": 7687490
+        }
+    }
+}
