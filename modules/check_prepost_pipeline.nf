@@ -1,7 +1,7 @@
 nextflow.enable.dsl=2
 
 process Create_md5{
-    publishDir "${params.outputdir}/md5_output", mode: 'copy'
+    publishDir "${params.outputdir}/Md5_output", mode: 'copy'
 
 	input:
 	path(fastqDir)
@@ -18,7 +18,7 @@ process Create_md5{
 }
 
 process Verify_md5{
-    publishDir "${params.outputdir}/md5_output", mode: 'copy'
+    publishDir "${params.outputdir}/Md5_output", mode: 'copy'
 
 	input:
     path(fastqDir)
@@ -52,7 +52,7 @@ process Check_samples{
 
     script:
     """
-    python3 ${check_sample_script} -csv ${sampleCsv}  -p ${fastqDir}
+    python3 ${check_sample_script} -csv ${sampleCsv}  -p ${fastqDir} -se ${params.single_end}
     """
     
 }

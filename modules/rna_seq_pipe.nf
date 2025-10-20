@@ -16,8 +16,7 @@ process doOnlySTARnCount {
 	path "*exonscount.txt"
 	path "*genecount.txt"
 
-	when:
-	params.starcount == true
+	script:
 	"""
 
 	fastqc -t $task.cpus -q $fqFile
@@ -45,9 +44,9 @@ process doOnlySTARnCount {
 
 
 
-		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
 
-		featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
 
 
 
@@ -58,7 +57,7 @@ process doOnlySTARnCount {
 }
 
 process fastqc {
-	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
+	publishDir "${params.outputdir}/Fastqc_output", mode: 'copy'
 
 	input :
 	tuple val(sample), file(fqFile)
@@ -94,8 +93,8 @@ process samtools_index {
 }
 
 process doSTAR {
-	publishDir "${params.outputdir}/Unmapped_reads", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
-	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy', pattern: "*StarOutLog.final.out"
+	publishDir "${params.outputdir}/UnmappedReads_output", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
+	publishDir "${params.outputdir}/StarLog_output", mode: 'copy', pattern: "*StarOutLog.final.out"
 
 	input :
 	path index
@@ -137,13 +136,20 @@ process doSTAR {
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
 	--outReadsUnmapped Fastx
 
-	# Compression et rename de Unmapped mate1 and mate 2 fastq
-    gzip -c ${sample}StarOutUnmapped.out.mate1 > Unmapped_${sample}_R1.fastq.gz
-    gzip -c ${sample}StarOutUnmapped.out.mate2 > Unmapped_${sample}_R2.fastq.gz
+	# Compress and rename Unmapped read fastqs
+	if [ -s "${sample}StarOutUnmapped.out.mate1" ]; then
+		gzip -c "${sample}StarOutUnmapped.out.mate1" > "Unmapped_${sample}_R1.fastq.gz"
+	else
+		echo "⚠️ No unmapped reads for mate1 (file empty or missing)"
+	fi
+
+	if [ -s "${sample}StarOutUnmapped.out.mate2" ]; then
+		gzip -c "${sample}StarOutUnmapped.out.mate2" > "Unmapped_${sample}_R2.fastq.gz"
+	else
+		echo "ℹ️ Single-end mode or no unmapped mate2"
+	fi
 
 	"""
-
-
 }
 
 process FCounts {
@@ -153,6 +159,7 @@ process FCounts {
 	path bam
 	path index
 	tuple val(sample), file(fqFile)
+	val featureCountP // -p if paired-end
 
 
 	output:
@@ -162,9 +169,9 @@ process FCounts {
 	path "*genecount.txt"
 
 	"""
-	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
 
-	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id' $bam
+	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id' $bam
 	
 	"""
 
@@ -188,7 +195,7 @@ process FCounts {
 }
 
 process multiqc {
-	publishDir "${params.outputdir}/MULTIqc_output", mode: 'copy'
+	publishDir "${params.outputdir}/Multiqc_output", mode: 'copy'
     input:
     	path files
 
@@ -204,7 +211,7 @@ process multiqc {
 
 process samtools_depth{
 
-	publishDir "${params.outputdir}/Samtools_depth", mode: 'copy', pattern: "*_depth.txt"
+	publishDir "${params.outputdir}/SamtoolsDepth_output", mode: 'copy', pattern: "*_depth.txt"
 
 	input:
 	tuple val(sample), file(bamFile)
