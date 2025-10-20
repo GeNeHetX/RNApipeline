@@ -301,7 +301,7 @@ process HaplotypeCaller {
 }
 
 process Vep {
-	publishDir "${params.outputdir}/VEP_output", mode: 'copy', pattern: "*_annot.vcf.gz"
+	publishDir "${params.outputdir}/Vep_output", mode: 'copy', pattern: "*_annot.vcf.gz"
 	//container 'quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0'
 	
 	input: 

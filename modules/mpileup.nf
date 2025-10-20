@@ -1,7 +1,7 @@
 process bcftools_mpileup{
 
-	publishDir "${params.outputdir}/mpileup_output/mpileup_file", mode: 'copy', pattern: '*.mpileup.gz'
-	publishDir "${params.outputdir}/mpileup_output/bcftools_file", mode: 'copy',  pattern: '*.bcftools.vcf.gz'
+	publishDir "${params.outputdir}/Mpileup_output/mpileup_file", mode: 'copy', pattern: '*.mpileup.gz'
+	publishDir "${params.outputdir}/Mpileup_output/bcftools_file", mode: 'copy',  pattern: '*.bcftools.vcf.gz'
 	
 	container 'quay.io/biocontainers/bcftools:1.21--h3a4d415_1'
 	

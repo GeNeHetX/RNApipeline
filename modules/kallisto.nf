@@ -3,7 +3,7 @@ nextflow.enable.dsl=2
 
 process KallistoPE {
 
-	publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
+	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
 
 	input:
 	path idx
@@ -32,7 +32,7 @@ process KallistoPE {
 }
 
 process Kallisto_single_end {
-publishDir "${params.outputdir}/kallisto_output", mode: 'copy'
+	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
 
 	input:
 	path idx
