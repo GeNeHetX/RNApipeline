@@ -68,6 +68,7 @@ def get_files(project_dir, df_samples, extensions):
         for ext in extensions:
             expected_filenames.add(f"{row['ID_Sample']}{row['suffix1']}.{ext}")
             expected_filenames.add(f"{row['ID_Sample']}{row['suffix2']}.{ext}")
+            expected_filenames.add(f"{row['ID_Sample']}.{ext}") #single-end possibility
     list_file = []
     for file in project_dir.glob(f"**/*"):
         if file.name in expected_filenames:
