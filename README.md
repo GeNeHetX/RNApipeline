@@ -37,11 +37,11 @@ In order to run correctly, three main variables :
 ## 1. Clone this repository ##
 - The first step is the git cloning of the pipeline directory 
 
-```git clone https://github.com/GeNeHetX/Rna-seq_pipeline``` 
+```git clone https://github.com/GeNeHetX/RNApipeline``` 
 
-- The second step is considering the Rna-seq_pipeline directory as your work directory 
+- The second step is considering the RNApipeline directory as your work directory 
 
-```cd Rna-seq_pipeline```
+```cd RNApipeline```
 
 ## 2. Data preparation ##
  1. Generate a sample list containing all of your samples names without the suffixes using the following bash comman line: \
