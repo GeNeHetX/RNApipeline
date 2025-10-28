@@ -38,10 +38,10 @@ allexoncounts=grep("exonscount.txt$", allfiles, value = TRUE)
 allgenecounts=grep("genecount.txt$", allfiles, value = TRUE)
 allstarlog=grep("StarOutLog.final.out$", allfiles, value = TRUE)
 
-a=sub("exonscount.txt$","",allexoncounts)
-b=sub("genecount.txt$","",allgenecounts)
-d=sub("StarOutLog.final.out$","",allstarlog)
-if(!setequal(basename(a),basename(b)) | !setequal(basename(b),basename(d)) ){stop("OMG NOT SAME SAMPLES")}
+a=basename(sub("exonscount.txt$","",allexoncounts))
+b=basename(sub("genecount.txt$","",allgenecounts))
+d=basename(sub("StarOutLog.final.out$","",allstarlog))
+if(!setequal(a,b) | !setequal(b,d) ){stop("OMG NOT SAME SAMPLES")}
 
 names(allexoncounts)=a
 names(allgenecounts)=b
