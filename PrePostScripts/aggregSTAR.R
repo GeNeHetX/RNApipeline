@@ -23,24 +23,25 @@ THREADS=12
 # datdir="/home/cpignolet2/bobgenomic/01_RawRNASeq/IPMN_MICRODISSEC/05_Process/RNAv1.5_Ensemblv107"
 # refgtf="/home/cpignolet2/bobgenomic/00_REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
 
+datdir="/home/bioinfo/wbobgenomic/01_RawRNASeq/IMPULSE/05_Process/RNAv1.5_Ensemblv107"
+refgtf="/home/bioinfo/wbobgenomic/00_REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
 
 datdir=args[1]
 refgtf=args[2]
 outdir=datdir
 
-rezdir=file.path(datdir,"FeatureCounts_output")
+rezdirs= file.path(datdir, c("FeatureCounts_output", "StarLog_output"))
+rezdirs=rezdirs[dir.exists(rezdirs)]
+allfiles=unlist(lapply(rezdirs, function(d) list.files(d, recursive = FALSE, full.names = TRUE)))
 
-allfiles=list.files(rezdir,recursive=F)
-allexoncounts=grep("exonscount.txt$",allfiles,value=T)
-allgenecounts=grep("genecount.txt$",allfiles,value=T)
-allstarlog=grep("StarOutLog.final.out$",allfiles,value=T)
-
-
+allexoncounts=grep("exonscount.txt$", allfiles, value = TRUE)
+allgenecounts=grep("genecount.txt$", allfiles, value = TRUE)
+allstarlog=grep("StarOutLog.final.out$", allfiles, value = TRUE)
 
 a=sub("exonscount.txt$","",allexoncounts)
 b=sub("genecount.txt$","",allgenecounts)
 d=sub("StarOutLog.final.out$","",allstarlog)
-if(!setequal(a,b) |!setequal(b,d) ){stop("OMG NOT SAME SAMPLES")}
+if(!setequal(basename(a),basename(b)) | !setequal(basename(b),basename(d)) ){stop("OMG NOT SAME SAMPLES")}
 
 names(allexoncounts)=a
 names(allgenecounts)=b
@@ -56,7 +57,7 @@ library(parallel)
 allFCGcountsL=mclapply(allgenecounts[allsampl],function(f){
   x=NULL
   try({
-    x=read.delim(file.path(rezdir,f),sep="\t",header=T,as.is=T,skip=1)
+    x=read.delim(file.path(f),sep="\t",header=T,as.is=T,skip=1)
     rownames(x)=x[,1]
   })
   x[ncol(x)]
@@ -65,14 +66,14 @@ allFCGcountsL=mclapply(allgenecounts[allsampl],function(f){
 allFCEcountsL=mclapply(allexoncounts[allsampl],function(f){
   x=NULL
   try({
-    x=unique(read.delim(file.path(rezdir,f),sep="\t",header=T,as.is=T,skip=1))
+    x=unique(read.delim(file.path(f),sep="\t",header=T,as.is=T,skip=1))
     rownames(x)=x[,1]
   })
   x[ncol(x)]
 },mc.cores=THREADS)
 
 allStarLog=mclapply(allstarlog[allsampl],function(f){
-  x=readLines(file.path(rezdir,f))
+  x=readLines(f)
   x=x[which(x!="")]
   x=gsub("%|\t","",gsub(" ","",grep(":$",gsub("^[ \t]+","",x),value=T,invert=T)))
   x=gsub(":|\\/",".",x)
