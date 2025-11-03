@@ -6,7 +6,7 @@ Requires Nextflow and Docker installation is required \
 the two docker images containning all the tools required by the pipeline are available on Docker Hub : \
 https://hub.docker.com/repository/docker/genehetx/genehetx-rnaseq \
 https://hub.docker.com/repository/docker/genehetx/vep_hs \
-This pipeline has two modules:
+This pipeline has two main modules:
 * rna_seq_pipe.nf : contains Fastqc, STAR alignment, FeatureCounts(reads quantification) and MultiQC
 * variant_calling.nf : contains the GATK4 workflow for varaiant calling (for RNA-Seq data), and VEP (VARIANT EFFECT PREDICTOR /ENSEMBL) for variant annotation
 
@@ -16,17 +16,18 @@ The aims of this pipeline are :
 * To align to a reference genome/transcriptome using (STAR)
 * To quantify the expression quantification using (FeatureCounts)
 * To quantify abundances of transcripts using (Kallisto)
-* To identify variations (Variant calling) using (GATK4)
+* To identify variations (Variant calling) using (GATK4 and/or Mpileup)
 * To functionaly annotate variants using (VEP)
 * To summarize of the FeatureCounts and STAR quality using (MultiQC)
 
 
 ## 0. Pre-requisites ##
 
-In order to run correctly, three main variables :
+In order to run correctly, four main variables :
 * _Input_dir_ : the directory with all fastqs (not in sub directories)
 * _output_dir_ : the directory in which all results of the pipe should be stored
 * _ref_ : the directory with the reference genome information
+* _config_file_ : the file to complete according your sequencing library (template available in **configExamples** directory)
 
 :warning: __if running on google cloud__ : (Check the section 5 "Google Cloud execution) 
 
@@ -39,59 +40,63 @@ In order to run correctly, three main variables :
 
 ```git clone https://github.com/GeNeHetX/RNApipeline``` 
 
-- The second step is considering the RNApipeline directory as your work directory 
-
-```cd RNApipeline```
 
 ## 2. Data preparation ##
- 1. Generate a sample list containing all of your samples names without the suffixes using the following bash comman line: \
- * __For single end data:__ \
-  ```ls path/to/your/Inputdir |sed -e 's/\_R1.fastq.gz$//' > samlist.txt  ```
+ 1. **Generate a sample list** containing all of your samples names without the suffixes and their associated project name using the following bash comman line: 
+  * __For single end data:__ \
+  ```ls path/to/your/Inputdir | sed -e 's/_R1\.fastq\.gz$//' | awk -v proj="projectName" '{print $0 "," proj}' > samlist.csv ```
   - Inputdir : is the directory containing only your fastq files and nothing else \ 
-  - _R1.fastq.gz : is an example of a suffix and it can be diffrenet from a datset to another \
-  -samlist.txt: is the output of the command , it is a txt file that contains a list of you samples name \
-  ** Example: 
+  - _R1.fastq.gz : is an example of a suffix and it can be diffrenet from a datset to another 
+  - projectName : the sample's project name
+  - samlist.csv: is the output of the command , it is a txt file that contains a list of you samples name  
+  **Example**: 
   ```
-  Inputdir : \
+  Inputdir : 
     * sample1_R1.fastq.gz
     * sample2_R1.fastq.gz 
     
-   samlist.txt:
-    * sample1
-    * sample2
-  ```
-  
- * __For paired end data__ : \
-  ```ls fastq_dir |sed -e 's/\_R1.fastq.gz$//'|sed -e 's/\_R2.fastq.gz$//'|uniq > samlist.txt ``` \
+   samlist.csv:
+    * sample1, projectName
+    * sample2, projectName
+  ```   
+
+   * __For paired end data__ :  
+  ```ls path/to/your/Inputdir | sed -E 's/_R[12]\.fastq\.gz$//' | sort -u | awk -v proj="projectName" '{print $0 "," proj}' > samlist.csv ``` \
  
 
- 2. Generate indexes required for each step of the pipeline
+ 2. **Generate indexes** required for each step of the pipeline
 * You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
 For this step you will need: 
      * Reference genome file: (fasta)  GRCh38.p13 you can retrieve it from Ensembl Database.
      * Gene annotation file : (GTF) you can retrieve it from the Ensembl Database.
      * Transcriptome file: (Cdna) you can retrieve it from the Ensembl Database. 
-     * To make sure that the FASTA and the GTF belong to the same genome version !!
-     * To get a Known-variants file: You can retrive it from Ensembl Database. 
+     * Make sure that the FASTA and the GTF belong to the same genome version !!
+     * Get a Known-variants file: You can retrive it from Ensembl Database. 
 This step requires 32Go RAM, so it is advised to generate once for the same genome, however you can generate it using the pipeline also by changing parameter in the config files (nextflow.config and nextflowGCP.config)=> explained in the __setting up__ setp.
 
 ## 3. setting up  ## 
-The pipeline can be executed on a local computer or on Google Cloud Life Science platforme \
-For a local execution modify the nextflow.config file and for Google Cloud execution modify the nextflowGCP.config, by changing the following parameters if necessary :
-  * To run the piepline correctly, Please modify the following parameters (Mandatory):
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify it this way
-```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
-But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
-    * ```params.kallisto ``` = true , by default, but if yo don't want to execute kallisto put false for this parameter 
-    * ```params.variant_calling ``` = true,  by default , but if you don't want to execute Variant calling put "false"
-    * ```params.outputdir=``` "/path/to your/outputdir" -> specify the path to your output directory (you should create a directory) where the pipeline outputs will be stored
-    * ```params.sampleInputDir =``` "/path/to your/inputdir"  -> the directory that contains your raw fastqc files => for a local eexcution \
-    this parameters will change when we executeon Google Cloud platefome to:  ```params.sampleInputDir =``` "gs://bucket_name/sampleInputDir" -> google cloud paths start with gs, followed by the bucket name \
-    * ```params.sampleList =``` "/path/to your/samlist.txt"  -> the text file that contains a list of your fastqc sample names  generates in __Data preparation step__
-    * ```params.samPsuffix1=```  -> specify the suffix of your fastq file name (ex: _R1_001)(if you have single end data you only need to specify this suffix without the sencond one (params.samPsuffix2) 
-    * ```params.samPsuffix2=``` ->specify the suffix of your fastq file name (ex: _R2_001) -> (for paired end you need to specify both suffix1 and suffix2)
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__, and for Google Cloud execution modify it this way
-```params.ref = ``` "gs://bucket_name/ensembl_v105_GRCh38_p13" \
+The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platforme \
+For a local execution modify the local.config file and for Google Cloud execution modify the GoogleCloud.config or GCP_PE_minimal.config, by changing the following parameters if necessary :
+* To run the piepline correctly, Please modify the following parameters (Mandatory):
+  * Library parameters:
+    * ```params.single_end``` = true if single-end data, = false if paired-end data
+    * ```params.FeatureCountStrand``` = 2 for Smarter Library Kit (you can get this information using salmon)
+    * ```params.kallistoStrand``` = "--rf-stranded" for Smarter Library Kit (you can get this information using salmon)
+  * Tools selection : 
+    * ```params.star``` = true , by default, but if yo don't want to execute STAR put false for this parameter 
+    * ```params.fastq``` = true , by default, but if yo don't want to execute Fastqc put false for this parameter 
+    * ```params.multiqc``` = true , by default, but if yo don't want to execute Multiqc put false for this parameter 
+    * ```params.kallisto``` = true , by default, but if yo don't want to execute Mallisto put false for this parameter 
+    * ```params.fcounts``` = true , by default, but if yo don't want to execute FeatueCpounts put false for this parameter 
+    * ```params.gatk4``` = true , by default, but if yo don't want to execute GATK4 put false for this parameter 
+    * ```params.samtools_depth``` = true , by default, but if yo don't want to execute Samtools depth put false for this parameter 
+    * ```params.no_multimapped``` = true , by default, filter multimapped read in Samtools depth command
+    * ```params.mpileup``` = true , by default, but if yo don't want to execute Mpileup put false for this parameter 
+    * ```params.vep``` = true , by default, but if yo don't want to execute VEP put false for this parameter 
+  * Reference paths :
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__
+    * But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
+    * ```params.vep_cache``` = "/PATH/to/ensembl_v105_GRCh38_p13/VEP"
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
  * STAR 
    * ```params.alignIntronMax = ```val
@@ -115,21 +120,44 @@ But if you want to include the indexes  generation in the pipeline you have to s
 
 
 ## 4. Local Pipeline executioon 
-For the execution setup your working directory to "workflow" which is the directory containning the workflows 
-```cd workflow``` 
-* a) For signle end data: \
-```nextflow run single_end.nf -c ../nextflow.config  -w /path/to/your/workdir  -with-report``` 
+For the execution setup, go to your working directory :
 
-:warning: The single_end.nf workflow accepts only single end data  
+* a) In local or in Google Cloud : \
+```bash
+  cd workflow_dir
 
-* b) For paired end data : \
-```nextflow run paired_end_pipe.nf -c ../nextflow.config  -w /path/to/your/workdir  -with-report``` 
+  ### To be customized by user:
+  PROJECTID="PROJECT_NAME"
+  INPUT_FQ_DIR="/path/to/fastqDir/"
+  REZ_DIR="/path/to/resultsDir/"$PROJECTID"/"
+  SAMPLE_CSV="/path/to/sample_csv/sample_list.csv"
+  CONFIG="/path/to/configFile/IFB_PE_minimal.config"
 
-:warning:The paired_end_pipe.nf Wokflow accepts only paired end data 
+  BED="/path/to/bedFile/my_hotspots.bed"
+  REF="/path/to/pdacrna/ensembl_v107_GRCh38b_kallisto_v0.51"
+  RNAPIPE_DIR="/path/to/RNApipeline/"
 
-for the -w : you can to specify the name and the location where you want to save your work directory otherwise nextflow will name it "work" and place it in your current working directory (which ic "workflow". The work directory is different from the your output directory \
--c : specify the path to the config file\
--with-report : allows you to generate a report about the pipeline execution
+  ### Dont touch variables below this line
+  nextflow -c $CONFIG run $RNAPIPE_DIR/RNApipeline.nf -entry Main\
+      -with-report report_$PROJECTID.html -resume \ 
+      --csvSample $SAMPLE_CSV \
+      --ref $REF \
+      --sampleInputDir $INPUT_FQ_DIR \
+      --scriptDir ${RNAPIPE_DIR}"/PrePostScripts/" \
+      --logBackupDir "." \
+      --runNumber $PROJECTID \
+      --outputdir $REZ_DIR \
+      --bed $BED
+``` 
+
+* b) In a slurm cluster (like IFB) : \
+copy the runIFBjob.sh exemple in the repository and modify the user parameters (see above)
+```bash
+  cd workflow_dir
+
+  # modify runIFBjob.sh
+  sbatch runIFBjob.sh
+``` 
 
 ## 5. Google Cloud pipeline execution ##
 This step requires : 
