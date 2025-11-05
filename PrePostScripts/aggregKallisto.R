@@ -15,7 +15,7 @@ refgtf=args[2]
 # refgtf="/Users/remy.nicolle/Downloads/RNAseqRez/ref.gtf"
 
 outdir=datdir
-rezdir=file.path(datdir,"kallistoOut")
+rezdir=file.path(datdir,"Kallisto_output")
 
 print(refgtf)
 
