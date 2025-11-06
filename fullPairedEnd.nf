@@ -10,6 +10,38 @@ include {buildref} from './modules/index.nf'
 include {Create_md5; Verify_md5; Check_samples; Check_process} from './modules/check_prepost_pipeline.nf'
 
 
+// Fonction utilitaire pour formater dynamiquement la version du pipeline
+def makeVersionTag(pipeline_version, genome_path) {
+    if (!genome_path) {
+        return "RNAv${pipeline_version.replaceAll(/^V/, '').replaceAll(/\\.0$/, '')}_customRef"
+    }
+
+    // Nettoyage de la version du pipeline -> "RNAv1.7.0" devient "RNAv1.7"
+    def versionTag = "RNAv${pipeline_version.replaceAll(/^V/, '').replaceAll(/\\.0$/, '')}"
+
+    // Extraction du nom de base du dossier du génome
+    def genomeBase = genome_path.tokenize('/')[-1] ?: genome_path
+    def genomeLower = genomeBase.toLowerCase()
+
+    // Détection de la version Ensembl
+    def m = (genomeBase =~ /ensembl_v(\d+)/)
+    def genomeVersion = m.find() ? "Ensemblv${m.group(1)}" : "Custom"
+
+    // Détection du type d’organisme
+    def species = ""
+    if (genomeLower.contains("humanmouse")) {
+        species = "_PDX"
+    } else if (genomeLower.contains("mouse")) {
+        species = "_Mouse"
+    } else {
+        species = ""
+    }
+
+    // Construction finale
+    return "${versionTag}_${genomeVersion}${species}"
+}
+
+// Workflow pour l’analyse RNA-seq en paired-end
 workflow Analysis_PE{
     take: 
       samples_ch
@@ -29,9 +61,12 @@ workflow Analysis_PE{
       else {
         fastqc(samples_ch)
         doSTAR(params.ref, samples_ch)
-        samtools_index(doSTAR.out.bam4bai)
         KallistoPE(params.ref, samples_ch)
 
+        if (params.mpileup || params.deepvariant) {
+          samtools_index(doSTAR.out.bam4bai)
+        }
+        
         if (params.fcounts == true){
           FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
         }
@@ -39,9 +74,6 @@ workflow Analysis_PE{
         if (params.samtools_depth == true){
           samtools_depth(doSTAR.out.bam4bai, params.bed)
         }
-        //if (params.samtools_depth == true){
-        //  samtools_depth(doSTAR.out[0].collect(), params.bed)
-        //}
 
         // VC with gatk4 + vep
         if (params.gatk4 == true){
@@ -73,6 +105,7 @@ workflow Analysis_PE{
 
 }
 
+// Workflow pour l’analyse RNA-seq en single-end
 workflow Analysis_SE{
       take: 
       samples_ch
@@ -192,7 +225,7 @@ workflow Main {
             pipeline   : "RNApipeline NF - V1.7.0",
             date       : date.toString(),
             genome     : params.ref,
-            version    : "RNAv1.7.0_Ensemblv107",
+            version    : makeVersionTag("V1.7", params.ref),
             sequenceID : params.runNumber,
             single_end : params.single_end,
             samples    : names,
@@ -202,10 +235,12 @@ workflow Main {
             scriptDir  : params.scriptDir,
             routine    : params.routine,
             run_star   : params.star,
+            run_multiqc   : params.multiqc,
             run_fastqc : params.fastqc,
             run_fcounts: params.fcounts,
             run_kallisto: params.kallisto,
             run_gatk   : params.gatk4,
+            run_samtools : params.samtools_depth,
             run_deepvar: params.deepvariant,
             run_mpileup: params.mpileup,
             run_vep    : params.vep
