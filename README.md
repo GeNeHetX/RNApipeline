@@ -44,7 +44,9 @@ In order to run correctly, four main variables :
 ## 2. Data preparation ##
  1. **Generate a sample list** containing all of your samples names without the suffixes and their associated project name using the following bash comman line: 
   * __For single end data:__ \
-  ```ls path/to/your/Inputdir | sed -e 's/_R1\.fastq\.gz$//' | awk -v proj="projectName" '{print $0 "," proj}' > samlist.csv ```
+  ```bash
+  (echo "ID_Sample,Project"; ls path/to/your/Inputdir | sed -E 's/_R1\.fastq\.gz$//' | sort -u | awk -v proj="projectName" '{print $0 "," proj}') > samlist.csv
+  ```
   - Inputdir : is the directory containing only your fastq files and nothing else \ 
   - _R1.fastq.gz : is an example of a suffix and it can be diffrenet from a datset to another 
   - projectName : the sample's project name
@@ -56,13 +58,21 @@ In order to run correctly, four main variables :
     * sample2_R1.fastq.gz 
     
    samlist.csv:
-    * sample1, projectName
-    * sample2, projectName
+    ID_Sample,Project
+    sample1, projectName
+    sample2, projectName
   ```   
 
    * __For paired end data__ :  
-  ```ls path/to/your/Inputdir | sed -E 's/_R[12]\.fastq\.gz$//' | sort -u | awk -v proj="projectName" '{print $0 "," proj}' > samlist.csv ``` \
- 
+  ```bash
+  (
+  echo "ID_Sample,Project"
+  ls path/to/your/Inputdir \
+    | sed -E 's/_R[12]\.fastq\.gz$//' \
+    | sort -u \
+    | awk -v proj="projectName" '{print $0 "," proj}'
+  ) > ./samlist.csv
+  ```
 
  2. **Generate indexes** required for each step of the pipeline
 * You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \

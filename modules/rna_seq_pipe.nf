@@ -100,7 +100,9 @@ process doSTAR {
 	path index
 	tuple val(sample), file(fqFile)
 
-
+	when:
+	params.star == true
+	
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path "*StarOutLog.final.out"
