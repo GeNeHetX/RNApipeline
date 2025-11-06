@@ -69,6 +69,6 @@ process Check_process{
 
     script:
     """
-    python3  ${check_process_script} -path_process ${params.outputdir} -path_csv ${csvtab}
+    python3  ${check_process_script} -path_res ${params.outputdir} -path_csv ${csvtab}
     """
 }

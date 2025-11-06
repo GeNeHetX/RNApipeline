@@ -6,10 +6,10 @@ from argparse import ArgumentParser
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
-        "-path_process", 
+        "-path_res", 
         type=Path,
         required=True,
-        help="Path to the process folder",
+        help="Path to the result process folder",
     )
     parser.add_argument(
         "-path_csv", 
@@ -34,8 +34,8 @@ def main(args):
     df_csv = pd.read_csv(args.path_csv,sep=',')
     print(f"Checking {len(df_csv)} samples in {args.path_csv}")
 
-    path_files = args.path_process / "FeatureCounts_output"
-    process_files = list(path_files.glob("**/*StarOutLog.final.out"))
+    path_starLog = args.path_res / "StarLog_output"
+    process_files = list(path_starLog.glob("**/*StarOutLog.final.out"))
     process_files = pd.DataFrame(process_files, columns=["ID_sample"])
     #process_files.head()
     process_files["ID_Patient"] = process_files.ID_sample.apply(lambda x: x.name.split(".")[0])
