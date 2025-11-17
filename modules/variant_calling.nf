@@ -335,6 +335,6 @@ process Vep {
 		--canonical \
 		--mane
 
-	gzip "${sample}_${suffix}_annot.vcf"
+	bgzip "${sample}_${suffix}_annot.vcf"
 	"""
 }
