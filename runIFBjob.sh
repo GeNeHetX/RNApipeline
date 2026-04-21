@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem-per-cpu=5GB
-#SBATCH -c 1
-#SBATCH -t 23:59:59
+#SBATCH --mem=100GB
+#SBATCH -c 12
+#SBATCH -t 48:59:59
 
 module load nextflow/24.04.1
 
@@ -19,8 +19,8 @@ REF="/path/to/pdacrna/ensembl_v107_GRCh38b_kallisto_v0.51"
 RNAPIPE_DIR="/path/to/RNApipeline/"
 
 ### Don't touch variables below this line
-nextflow -c $CONFIG run $RNAPIPE_DIR/RNApipeline.nf -entry Main\
-    -with-report report_$PROJECTID.html -resume \ 
+nextflow -c $CONFIG run $RNAPIPE_DIR/fullPairedEnd.nf -entry Main\
+    -with-report report_$PROJECTID.html -resume \
     --csvSample $SAMPLE_CSV \
     --ref $REF \
     --sampleInputDir $INPUT_FQ_DIR \

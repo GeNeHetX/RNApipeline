@@ -333,7 +333,8 @@ process Vep {
 		--protein \
 		--symbol \
 		--canonical \
-		--mane
+		--mane \
+		${params.vep_species}
 
 	bgzip "${sample}_${suffix}_annot.vcf"
 	"""

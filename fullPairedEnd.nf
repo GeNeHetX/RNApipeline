@@ -47,6 +47,7 @@ workflow Analysis_PE{
       samples_ch
       sample_csv // pas utilisé
       fastqDir // pas utilisé
+      md5_error_file // sert à attendre les md5
     
     main:
       def featureCountP = " -p "  // paired end
@@ -109,6 +110,7 @@ workflow Analysis_PE{
 workflow Analysis_SE{
       take: 
       samples_ch
+      md5_error_file // sert à attendre les md5
     
     main:
       def featureCountP = " "  // single end
@@ -159,7 +161,7 @@ workflow Main {
     .splitCsv(header: true, sep:",")
     .map {
       [ it.ID_Sample,
-        file("${params.sampleInputDir}/${it.ID_Sample}.fastq.gz")
+        file("${params.sampleInputDir}/${it.ID_Sample}${it.suffix1}.fastq.gz")
       ]
     }
   } else {
@@ -199,10 +201,10 @@ workflow Main {
 
   // 4. Analyse RNAseq
   if (params.single_end) {
-    Analysis_SE(samples_ch)
+    Analysis_SE(samples_ch, md5_error_file)
   }
   else {
-    Analysis_PE(samples_ch, sample_checked_csv, params.sampleInputDir)
+    Analysis_PE(samples_ch, sample_checked_csv, params.sampleInputDir, md5_error_file)
   }
 
   // 5. Vérifie les outputs process pour tous les échantillons
@@ -243,7 +245,8 @@ workflow Main {
             run_samtools : params.samtools_depth,
             run_deepvar: params.deepvariant,
             run_mpileup: params.mpileup,
-            run_vep    : params.vep
+            run_vep    : params.vep,
+            containers : params.containers
           ]
           def outFile = new File("${params.outputdir}/${params.runNumber}_pipeline_summary.json")
           outFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))

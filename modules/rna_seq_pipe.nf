@@ -136,6 +136,7 @@ process doSTAR {
 	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
+	--limitBAMsortRAM $params.limitBAMsortRAM \
 	--outReadsUnmapped Fastx
 
 	# Compress and rename Unmapped read fastqs
