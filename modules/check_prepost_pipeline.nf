@@ -33,7 +33,7 @@ process Verify_md5{
 
     script:
 	"""
-	python  ${projectDir}/PrePostScripts/verifyCheckSum.py -md5 $md5tab -dir $fastqDir 
+	python3 ${projectDir}/PrePostScripts/verifyCheckSum.py -md5 $md5tab -dir $fastqDir 
 
 	"""
 }

@@ -22,7 +22,7 @@ ENV PYTHONUNBUFFERED=1
 # Créer un environnement virtuel Python et installer les packages requis
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install pandas numpy tqdm
+    && /opt/venv/bin/pip install pandas numpy tqdm openpyxl
 
 # Ajouter le venv au PATH
 ENV PATH="/opt/venv/bin:$PATH"

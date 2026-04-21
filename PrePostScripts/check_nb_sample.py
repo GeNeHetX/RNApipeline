@@ -43,10 +43,14 @@ def extract_suffix(file_name):
     return ID, suffix
 
 def extract_sample_name_se(file_name):
-    # Pas de suffixe pour les single-end
+    # Suffix pour single-end : _R1 ou rien 
     # Extraire tout avant '.fastq.gz' = sample name
-    ID = file_name[0 : file_name.rfind('.fastq.gz')]
-    suffix = None
+    sample_name = file_name[0 : file_name.rfind('.fastq.gz')]
+    last_r_pos = sample_name.rfind('_R')
+    if last_r_pos == -1:
+        return sample_name, None  # Si '_R' n'est pas trouvé dans le nom, on garde tout
+    suffix = file_name[last_r_pos : file_name.rfind('.fastq.gz')]
+    ID = file_name[:last_r_pos]
     return ID, suffix
 
 def main(args):
