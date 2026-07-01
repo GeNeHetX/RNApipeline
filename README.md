@@ -43,9 +43,11 @@ In order to run correctly, four main variables :
 
 ## 2. Data preparation ##
  1. **Generate a sample list** containing all of your sample names without the suffixes and their associated project name using the following bash comman line: 
-  * __For single end data:__ \
+  * __For single end data:__ 
   ```bash
-  (echo "ID_Sample,Project"; ls path/to/your/Inputdir | sed -E 's/_R1\.fastq\.gz$//' | sort -u | awk -v proj="projectName" '{print $0 "," proj}') > samlist.csv
+  INPUT_DIR="path/to/your/Inputdir"
+  PROJECT_NAME="projectName"
+  (echo "ID_Sample,Project"; ls "${INPUT_DIR}" | sed -E 's/_R1\.fastq\.gz$//' | sort -u | awk -v proj="${PROJECT_NAME}" '{print $0 "," proj}') > samlist.csv
   ```
   - Inputdir : is the directory containing only your fastq files and nothing else \ 
   - _R1.fastq.gz : is an example of a suffix, and it can be different from one dataset to another 
@@ -65,13 +67,17 @@ In order to run correctly, four main variables :
 
    * __For paired end data__ :  
   ```bash
-  (
-  echo "ID_Sample,Project"
-  ls path/to/your/Inputdir \
-    | sed -E 's/_R[12]\.fastq\.gz$//' \
-    | sort -u \
-    | awk -v proj="projectName" '{print $0 "," proj}'
-  ) > ./samlist.csv
+INPUT_DIR="path/to/your/Inputdir"
+PROJECT_NAME="projectName"
+
+(
+echo "ID_Sample,Project"
+ls "${INPUT_DIR}" \
+| grep -E '_R[12](_[0-9]+)?\.fastq(\.gz)?$' \
+| sed -E 's/_R[12](_[0-9]+)?\.fastq(\.gz)?$//' \
+| sort -u \
+| awk -v proj="${PROJECT_NAME}" '{print $0 "," proj}'
+) > ./samlist.csv
   ```
 
  2. **Generate indexes** required for each step of the pipeline
