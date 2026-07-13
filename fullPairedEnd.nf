@@ -7,7 +7,7 @@ include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
 include {bcftools_mpileup} from './modules/mpileup.nf'
 include {KallistoPE} from './modules/kallisto.nf'
 include {buildref} from './modules/index.nf'
-include {Create_md5; Verify_md5; Check_samples; Check_process} from './modules/check_prepost_pipeline.nf'
+include {Create_md5; Verify_md5; Check_samples; Check_process; Write_summary} from './modules/check_prepost_pipeline.nf'
 
 
 // Fonction utilitaire pour formater dynamiquement la version du pipeline
@@ -41,14 +41,32 @@ def makeVersionTag(pipeline_version, genome_path) {
     return "${versionTag}_${genomeVersion}${species}"
 }
 
+def referenceIdFromPath(reference_path) {
+    if (!reference_path || reference_path.toString() == "no_ref") {
+        return null
+    }
+    def normalized = reference_path.toString().replaceAll('/+$', '')
+    return normalized.tokenize('/')[-1] ?: normalized
+}
+
+def referenceManifestFromPath(reference_path) {
+    if (!reference_path || reference_path.toString() == "no_ref") {
+        return null
+    }
+    def normalized = reference_path.toString().replaceAll('/+$', '')
+    return "${normalized}/reference_manifest.json"
+}
+
 // Workflow pour l’analyse RNA-seq en paired-end
 workflow Analysis_PE{
-    take: 
+    take:
+
       samples_ch
       sample_csv // pas utilisé
       fastqDir // pas utilisé
       md5_error_file // sert à attendre les md5
-    
+
+
     main:
       def featureCountP = " -p "  // paired end
       if(params.ref=="no_ref") {
@@ -67,7 +85,8 @@ workflow Analysis_PE{
         if (params.mpileup || params.deepvariant) {
           samtools_index(doSTAR.out.bam4bai)
         }
-        
+
+
         if (params.fcounts == true){
           FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
         }
@@ -95,7 +114,8 @@ workflow Analysis_PE{
           Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], params.ref, params.modelckptdeepar)
           Vep_deepvariant(Deepvariant.out, params.ref,"deepvariant")
         }
-       
+
+
       }
       //Agregate quality results
       multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
@@ -108,10 +128,12 @@ workflow Analysis_PE{
 
 // Workflow pour l’analyse RNA-seq en single-end
 workflow Analysis_SE{
-      take: 
+      take:
+
       samples_ch
       md5_error_file // sert à attendre les md5
-    
+
+
     main:
       def featureCountP = " "  // single end
 
@@ -138,19 +160,26 @@ import groovy.json.JsonOutput
 
 workflow Main {
   // 1. Check_samples
-  def check_samples_res = Check_samples(params.csvSample, params.sampleInputDir, file("${params.scriptDir}/check_nb_sample.py"))
-  def sample_checked_csv = check_samples_res[0]
-  def sample_status = check_samples_res[1].map{ it.text.trim() }
+  def sample_checked_csv
+  if (params.check_samples != false) {
+    def check_samples_res = Check_samples(params.csvSample, params.sampleInputDir, file("${params.scriptDir}/check_nb_sample.py"))
+    sample_checked_csv = check_samples_res[0]
+    def sample_status = check_samples_res[1].map{ it.text.trim() }
 
-  // 1.bis Vérifier samples
-  sample_status
-    .map { status ->
-      if (status != "OK") {
-        throw new RuntimeException("❌ Some sample fastqs are missing. Please check the sample list.")
+    // 1.bis Vérifier samples
+    sample_status
+      .map { status ->
+        if (status != "OK") {
+          throw new RuntimeException("❌ Some sample fastqs are missing. Please check the sample list.")
+        }
+        return status
       }
-      return status
-    }
-    .set { verified_status_ch }
+      .set { verified_status_ch }
+  }
+  else {
+    log.info("Skipping local sample directory scan. The CSV must include ID_Sample,suffix1,suffix2 columns.")
+    sample_checked_csv = Channel.value(file(params.csvSample))
+  }
 
   // 2. Construire le canal samples_ch depuis CSV
   def samples_ch
@@ -177,27 +206,35 @@ workflow Main {
       ]
     }
   }
-  
+
+
   // 2bis. Extraire la liste des noms d’échantillons comme channel
   def list_names_ch = samples_ch.map { it[0] }.toList()
-  
+
+
   // 3. Create_md5|Verify_md5 selon cas routine|reprocess
   def md5_error_file
-  if(params.routine==true){
-    Create_md5( params.sampleInputDir, sample_checked_csv)
-    md5_error_file = Create_md5.out[1]
-  }else {
-    Verify_md5(params.sampleInputDir, params.md5)
-    md5_error_file = Verify_md5.out[1]
-    // 3.bis Vérifier MD5 status file
-    md5_error_file
-      .map { it.text.trim() }
-      .subscribe { status_md5 ->
-      if (status_md5 != "OK") {
-        throw new RuntimeException("❌ ERROR checking md5, please check your tab and fastq dir.")
-        }
-      }.set { verified_status_md5 }
+  if (params.check_md5 != false) {
+    if(params.routine==true){
+      Create_md5( params.sampleInputDir, sample_checked_csv)
+      md5_error_file = Create_md5.out[1]
+    }else {
+      Verify_md5(params.sampleInputDir, params.md5)
+      md5_error_file = Verify_md5.out[1]
+      // 3.bis Vérifier MD5 status file
+      md5_error_file
+        .map { it.text.trim() }
+        .subscribe { status_md5 ->
+        if (status_md5 != "OK") {
+          throw new RuntimeException("❌ ERROR checking md5, please check your tab and fastq dir.")
+          }
+        }.set { verified_status_md5 }
     }
+  }
+  else {
+    log.info("Skipping local MD5 scan for object-storage inputdir: ${params.sampleInputDir}")
+    md5_error_file = Channel.value("SKIPPED")
+  }
 
   // 4. Analyse RNAseq
   if (params.single_end) {
@@ -207,54 +244,65 @@ workflow Main {
     Analysis_PE(samples_ch, sample_checked_csv, params.sampleInputDir, md5_error_file)
   }
 
-  // 5. Vérifie les outputs process pour tous les échantillons
-  def check_process_res
-  if (params.single_end) {
-    check_process_res = Check_process(sample_checked_csv, Analysis_SE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))
+  // 5. Vérifie les outputs process pour tous les échantillons.
+  // Object-store output paths cannot be scanned with local filesystem APIs.
+  def should_check_process = params.check_process_outputs != false && !params.outputdir.toString().startsWith('s3://')
+  def process_status_ch
+  if (should_check_process) {
+    if (params.single_end) {
+      process_status_ch = Check_process(sample_checked_csv, Analysis_SE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))[0]
+    }
+    else {
+      process_status_ch = Check_process(sample_checked_csv, Analysis_PE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))[0]
+    }
   }
   else {
-    check_process_res = Check_process(sample_checked_csv, Analysis_PE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))
+    log.info("Skipping local output scan for object-storage outputdir: ${params.outputdir}")
+    process_status_ch = Channel.value("OK")
   }
-  
-  
-  check_process_res[0]
-    .map { it.text.trim() }
+
+  process_status_ch
+    .map { status_file -> should_check_process ? status_file.text.trim() : status_file }
     .subscribe { status_process ->
-      if (status_process == "OK") {
-        log.info("✅ All process done successfully.")
-        list_names_ch.subscribe { names ->
-          def report = [
-            pipeline   : "RNApipeline NF - V1.7.0",
-            date       : date.toString(),
-            genome     : params.ref,
-            version    : makeVersionTag("V1.7", params.ref),
-            sequenceID : params.runNumber,
-            single_end : params.single_end,
-            samples    : names,
-            region_bed : params.bed,
-            fastq_path : params.sampleInputDir,
-            outputdir  : params.outputdir,
-            scriptDir  : params.scriptDir,
-            routine    : params.routine,
-            run_star   : params.star,
-            run_multiqc   : params.multiqc,
-            run_fastqc : params.fastqc,
-            run_fcounts: params.fcounts,
-            run_kallisto: params.kallisto,
-            run_gatk   : params.gatk4,
-            run_samtools : params.samtools_depth,
-            run_deepvar: params.deepvariant,
-            run_mpileup: params.mpileup,
-            run_vep    : params.vep,
-            containers : params.containers
-          ]
-          def outFile = new File("${params.outputdir}/${params.runNumber}_pipeline_summary.json")
-          outFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
-          log.info "✅ Pipeline summary écrit : ${outFile}"
-        }
-      } else {
+      if (status_process != "OK") {
         throw new RuntimeException("❌ Some process are missing, please check logs and outputs.")
       }
+      log.info("✅ All process done successfully.")
     }
+
+  list_names_ch
+    .map { names ->
+      [
+        pipeline   : "RNApipeline NF - V1.7.0",
+        pipeline_version: "1.7.0",
+        date       : date.toString(),
+        genome     : params.ref,
+        reference_id: referenceIdFromPath(params.ref),
+        reference_manifest: params.reference_manifest ?: referenceManifestFromPath(params.ref),
+        version    : makeVersionTag("V1.7", params.ref),
+        sequenceID : params.runNumber,
+        single_end : params.single_end,
+        samples    : names,
+        region_bed : params.bed,
+        fastq_path : params.sampleInputDir,
+        outputdir  : params.outputdir,
+        scriptDir  : params.scriptDir,
+        routine    : params.routine,
+        run_star   : params.star,
+        run_multiqc: params.multiqc,
+        run_fastqc : params.fastqc,
+        run_fcounts: params.fcounts,
+        run_kallisto: params.kallisto,
+        run_gatk   : params.gatk4,
+        run_samtools : params.samtools_depth,
+        run_deepvar: params.deepvariant,
+        run_mpileup: params.mpileup,
+        run_vep    : params.vep,
+        containers : params.containers
+      ]
+    }
+    .set { summary_ch }
+
+  Write_summary(summary_ch)
 
 }

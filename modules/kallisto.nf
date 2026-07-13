@@ -22,7 +22,7 @@ process KallistoPE {
 	"""
 
 
-	kallisto quant  -i $idx/kallisto_index -t ${task.cpus} $params.kallistoStrand -o "${Sample}" ${fastqFile}
+	kallisto quant  -i $idx/kalliso_index -t ${task.cpus} $params.kallistoStrand -o "${Sample}" ${fastqFile}
 
 
 	"""
@@ -43,7 +43,7 @@ process Kallisto_single_end {
 	file "${Sample}"
 
 	when:
-	kallisto == true
+	params.kallisto == true
 	"""
 
 	kallisto quant --single -l ${params.read_len} -s ${params.read_sd}  -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}

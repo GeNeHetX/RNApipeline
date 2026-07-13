@@ -33,7 +33,8 @@ process Verify_md5{
 
     script:
 	"""
-	python3 ${projectDir}/PrePostScripts/verifyCheckSum.py -md5 $md5tab -dir $fastqDir 
+	python3 ${projectDir}/PrePostScripts/verifyCheckSum.py -md5 $md5tab -dir $fastqDir
+
 
 	"""
 }
@@ -54,7 +55,8 @@ process Check_samples{
     """
     python3 ${check_sample_script} -csv ${sampleCsv}  -p ${fastqDir} -se ${params.single_end}
     """
-    
+
+
 }
 
 process Check_process{
@@ -70,5 +72,23 @@ process Check_process{
     script:
     """
     python3  ${check_process_script} -path_res ${params.outputdir} -path_csv ${csvtab}
+    """
+}
+
+process Write_summary {
+    publishDir "${params.outputdir}", mode: 'copy'
+
+    input:
+    val report
+
+    output:
+    path "${params.runNumber}_pipeline_summary.json"
+
+    script:
+    def json = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
+    """
+cat > ${params.runNumber}_pipeline_summary.json <<'EOF'
+${json}
+EOF
     """
 }

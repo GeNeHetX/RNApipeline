@@ -22,11 +22,11 @@ process doOnlySTARnCount {
 	fastqc -t $task.cpus -q $fqFile
 
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile\
+	--readFilesIn $fqFile \
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
 	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf\
+	--sjdbGTFfile $index/ref.gtf \
 	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
 	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
 	--alignIntronMax $params.alignIntronMax \
@@ -34,11 +34,11 @@ process doOnlySTARnCount {
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
 	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin\
+	--alignSJoverhangMin $params.alignSJoverhangMin \
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
 	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
+	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax
 
@@ -67,7 +67,8 @@ process fastqc {
 
 	when:
 	params.fastqc == true
-	
+
+
 	script:
 	"""
 	#echo $fqFile
@@ -76,16 +77,19 @@ process fastqc {
 }
 
 process samtools_index {
-	
+
+
 	input :
 	tuple val(sample), path(bamFile)
 
 	output:
 	tuple val(sample), path(bamFile), path ("${sample}*.bai"), emit : align_files
-	
+
+
 	when:
 	params.star == true
-	
+
+
 	script:
 	"""
 	samtools index -b ${bamFile} -o "${bamFile}.bai"
@@ -102,7 +106,8 @@ process doSTAR {
 
 	when:
 	params.star == true
-	
+
+
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
 	path "*StarOutLog.final.out"
@@ -111,29 +116,30 @@ process doSTAR {
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
 
-	script:	
+	script:
+
 	"""
 
 	# fastqc -t $task.cpus -q $fqFile
 
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile\
+	--readFilesIn $fqFile \
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
 	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf\
+	--sjdbGTFfile $index/ref.gtf \
 	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
 	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
 	--alignIntronMax $params.alignIntronMax \
 	--alignMatesGapMax $params.alignMatesGapMax \
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
-	--outFilterMultimapNmax $params.winAnchorMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin\
+	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
+	--alignSJoverhangMin $params.alignSJoverhangMin \
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
 	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
+	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
 	--limitBAMsortRAM $params.limitBAMsortRAM \
@@ -175,7 +181,8 @@ process FCounts {
 	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
 
 	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id' $bam
-	
+
+
 	"""
 
 	// awk 'NR>1' genecount > genecount.tab
@@ -200,7 +207,7 @@ process FCounts {
 process multiqc {
 	publishDir "${params.outputdir}/Multiqc_output", mode: 'copy'
     input:
-    	path files
+	path files
 
     output:
 		file "*.html"
@@ -220,7 +227,8 @@ process samtools_depth{
 	tuple val(sample), file(bamFile)
 	path bedfile
 
-	output:	
+	output:
+
 	path "*_depth.txt"
 
 	when:
