@@ -23,7 +23,7 @@ FORCE=0
 KEEP_WORK=0
 SKIP_MOUNT_CHECK=0
 
-CORE_IMAGE_SOURCE="docker://genehetx/genehetx-rnaseq:v1.6.0"
+CORE_IMAGE_SOURCE="docker://genehetx/genehetx-rnaseq:v1.6.1"
 KALLISTO_IMAGE_SOURCE="docker://quay.io/biocontainers/kallisto:0.51.1--heb0cbe2_0"
 R_IMAGE_SOURCE="docker://rocker/r-ver:4.3.3"
 VEP_IMAGE_SOURCE="docker://quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0"
@@ -110,13 +110,14 @@ LOCK_DIR="${BUILD_DIR}.lock"
 STAGE_DIR="${REF_ROOT%/}/.staging/${REFERENCE_ID}.${CURRENT_JOB}"
 IMAGE_DIR="${BUILD_DIR}/images"
 
-CORE_SIF="${IMAGE_DIR}/genehetx-rnaseq-v1.6.0.sif"
+CORE_SIF="${IMAGE_DIR}/genehetx-rnaseq-v1.6.1.sif"
 KALLISTO_SIF="${IMAGE_DIR}/kallisto-0.51.1.sif"
 R_SIF="${IMAGE_DIR}/r-ver-4.3.3.sif"
 VEP_SIF="${IMAGE_DIR}/ensembl-vep-113.2.sif"
 
 PICARD_JAR=""
 GATK_JAR=""
+APPTAINER_ARCH=""
 LOCK_HELD=0
 
 release_build_lock() {
@@ -186,19 +187,55 @@ acquire_build_lock() {
     printf '%s\n' "$CURRENT_JOB" >"${LOCK_DIR}/job_id"
 }
 
+host_apptainer_arch() {
+    case "$(uname -m)" in
+        x86_64)
+            printf 'amd64\n'
+            ;;
+        aarch64|arm64)
+            printf 'arm64\n'
+            ;;
+        *)
+            die "unsupported host architecture: $(uname -m)"
+            ;;
+    esac
+}
+
+image_matches_arch() {
+    local image="$1"
+    local image_machine
+    image_machine="$($APPTAINER_BIN exec "$image" uname -m 2>/dev/null)" || return 1
+
+    case "${APPTAINER_ARCH}:${image_machine}" in
+        amd64:x86_64|arm64:aarch64|arm64:arm64)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 ensure_image() {
     local target="$1"
     local source="$2"
 
-    if [[ -s "$target" ]]; then
+    if [[ -s "$target" ]] && image_matches_arch "$target"; then
         log "Using cached image: $target"
         return
     fi
 
+    if [[ -s "$target" ]]; then
+        log "Removing cached image with the wrong or unusable architecture: $target"
+        rm -f -- "$target"
+    fi
+
     log "Pulling Apptainer image: $source"
     mkdir -p -- "$(dirname "$target")"
-    "$APPTAINER_BIN" pull "$target" "$source"
+    "$APPTAINER_BIN" pull --arch "$APPTAINER_ARCH" "$target" "$source"
     [[ -s "$target" ]] || die "Apptainer pull did not produce: $target"
+    image_matches_arch "$target" \
+        || die "Apptainer image has the wrong or unusable architecture: $target (expected $APPTAINER_ARCH)"
 }
 
 apptainer_exec() {
@@ -271,7 +308,7 @@ build_reference() {
     mkdir -p -- "${BUILD_DIR}/sources" "${BUILD_DIR}/VEP" "${BUILD_DIR}/images" \
         "${BUILD_DIR}/apptainer-tmp"
 
-    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/nextflow/work/.apptainer-cache}"
+    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache}"
     export APPTAINER_TMPDIR="${BUILD_DIR}/apptainer-tmp"
     mkdir -p -- "$APPTAINER_CACHEDIR"
 
@@ -602,6 +639,14 @@ main() {
 
     APPTAINER_BIN="${APPTAINER_BIN:-apptainer}"
     require_cmd "$APPTAINER_BIN"
+    APPTAINER_ARCH="${APPTAINER_PULL_ARCH:-$(host_apptainer_arch)}"
+    case "$APPTAINER_ARCH" in
+        amd64|arm64)
+            ;;
+        *)
+            die "APPTAINER_PULL_ARCH must be amd64 or arm64 (got: $APPTAINER_ARCH)"
+            ;;
+    esac
 
     check_ref_mount
     check_source_urls

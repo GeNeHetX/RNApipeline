@@ -216,10 +216,10 @@ workflow Main {
   def md5_error_file
   if (params.check_md5 != false) {
     if(params.routine==true){
-      Create_md5( params.sampleInputDir, sample_checked_csv)
+      Create_md5( params.sampleInputDir, sample_checked_csv, file("${params.scriptDir}/createCheckSum.py"))
       md5_error_file = Create_md5.out[1]
     }else {
-      Verify_md5(params.sampleInputDir, params.md5)
+      Verify_md5(params.sampleInputDir, file(params.md5), file("${params.scriptDir}/verifyCheckSum.py"))
       md5_error_file = Verify_md5.out[1]
       // 3.bis Vérifier MD5 status file
       md5_error_file

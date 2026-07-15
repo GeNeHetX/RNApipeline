@@ -1,8 +1,11 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 MAINTAINER REMY NICOLLE  <remy.nicolle@inserm.fr>
+ARG TARGETARCH
+ARG NEXTFLOW_VERSION=24.04.4
 ### Install jdk8
 RUN apt-get update && \
  	apt-get install --yes openjdk-8-jre-headless \
+	openjdk-17-jre-headless \
 	unzip libfindbin-libs-perl default-jre \
 	wget \
 	python3 \
@@ -14,25 +17,37 @@ RUN apt-get update && \
 	kallisto \
   curl \
 	&& 	pip3 install "multiqc==1.12" \
-	&&  curl -s https://get.nextflow.io | bash \
+	&& case "${TARGETARCH}" in amd64) JAVA_ARCH=amd64 ;; arm64) JAVA_ARCH=arm64 ;; *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; esac \
+	&& update-alternatives --set java "/usr/lib/jvm/java-17-openjdk-${JAVA_ARCH}/bin/java" \
+	&& curl -fL "https://github.com/nextflow-io/nextflow/releases/download/v${NEXTFLOW_VERSION}/nextflow" \
+	    -o /usr/local/bin/nextflow \
+	&& chmod 0755 /usr/local/bin/nextflow \
 	&& 	mkdir /data
 
 
-RUN curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-404.0.0-linux-x86_64.tar.gz \
-  && tar -xf google-cloud-cli-404.0.0-linux-x86_64.tar.gz \
+RUN case "${TARGETARCH}" in \
+      amd64) GCLOUD_ARCH=x86_64 ;; \
+      arm64) GCLOUD_ARCH=arm ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+  && curl -fL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-${GCLOUD_ARCH}.tar.gz" \
+       -o /tmp/google-cloud-cli.tar.gz \
+  && tar -xf /tmp/google-cloud-cli.tar.gz \
   && ./google-cloud-sdk/install.sh -q   --rc-path /root/.bashrc
 
 ###INSTALL FASTQC
 ENV SA=Europe/Paris
 
-ENV FASTQC_url http://www.bioinformatics.babraham.ac.uk/projects/fastqc
+ENV FASTQC_URL=https://www.bioinformatics.babraham.ac.uk/projects/fastqc
 ARG DEBIAN_FRONTEND=noninteractive
 
 
 WORKDIR /usr/local
-ADD ${FASTQC_url}/fastqc_v0.11.9.zip /tmp/
+RUN curl -fL --retry 3 \
+    "${FASTQC_URL}/fastqc_v0.11.9.zip" \
+    -o /tmp/fastqc_v0.11.9.zip
 RUN unzip /tmp/fastqc_v0.11.9.zip && sed -i 's/Xmx250m/Xmx2048m/' FastQC/fastqc && chmod 755 FastQC/fastqc
-ENV PATH /usr/local/FastQC/:$PATH
+ENV PATH=/usr/local/FastQC/:$PATH
 
 
 

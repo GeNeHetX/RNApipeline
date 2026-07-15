@@ -6,6 +6,7 @@ process Create_md5{
 	input:
 	path(fastqDir)
     path(sampleCsv)
+    path(checksum_script)
 
 	output:
     file("md5Tab.tsv")
@@ -13,7 +14,7 @@ process Create_md5{
 
     script:
 	"""
-	python3 ${projectDir}/PrePostScripts/createCheckSum.py -md5 md5Tab.tsv -p $fastqDir -c $sampleCsv -e fastq.gz fastq
+	python3 ${checksum_script} -md5 md5Tab.tsv -p $fastqDir -c $sampleCsv -e fastq.gz fastq
 	"""
 }
 
@@ -23,6 +24,7 @@ process Verify_md5{
 	input:
     path(fastqDir)
     path(md5tab)
+    path(verify_script)
 
     output:
     path(md5tab)
@@ -33,7 +35,7 @@ process Verify_md5{
 
     script:
 	"""
-	python3 ${projectDir}/PrePostScripts/verifyCheckSum.py -md5 $md5tab -dir $fastqDir
+	python3 ${verify_script} -md5 $md5tab -dir $fastqDir
 
 
 	"""
