@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=rnapipeline-ref107
-#SBATCH --partition=pam_cpu
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=48:00:00
-#SBATCH --output=/tmp/rnapipeline-ref-build-%j.out
-#SBATCH --error=/tmp/rnapipeline-ref-build-%j.err
-
 set -Eeuo pipefail
 IFS=$'\n\t'
 
 # Build the complete precomputed reference used by RNApipeline on TOD/PAM.
 # The build is staged on local Slurm scratch and published atomically to the
 # direct CephFS reference mount.
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 REFERENCE_ID="ensembl_v107_GRCh38"
 PIPELINE_VERSION="1.7.0"
@@ -525,9 +515,39 @@ kallisto_exec() {
 r_exec() {
     "$APPTAINER_BIN" exec \
         --bind "${BUILD_DIR}:/work" \
-        --bind "${SCRIPT_DIR}:/pipeline:ro" \
         --pwd /work \
         "$R_SIF" "$@"
+}
+
+write_proc_gtf_script() {
+    local target="${BUILD_DIR}/procGTF.R"
+    [[ -s "$target" ]] && return
+    cat >"$target" <<'R_SCRIPT'
+#!/usr/bin/env Rscript
+args = commandArgs(trailingOnly=TRUE)
+library(parallel)
+gtf=read.delim(args[1],sep="\t",as.is=T,header=F,comment.char="#")
+gtf.getmeta=function(apieceofgtf){strsplit((apieceofgtf)[,9],";| ")}
+gtf.getmetavalue=function(apieceofgtf,field){
+   metadata=gtf.getmeta(apieceofgtf)
+   unlist(mclapply(metadata,function(x){
+       if(field%in% x){return(x[which(x==field)+1])}else{return(NA)}
+   }))
+}
+geneTab = gtf[which(gtf[,3] == "gene"),]
+geneTab$GeneID = gtf.getmetavalue(geneTab,"gene_id")
+geneTab$GeneName = gtf.getmetavalue(geneTab,"gene_name")
+inoname = which(is.na(geneTab$GeneName))
+geneTab$GeneName[inoname] = geneTab$GeneID[inoname]
+geneTab$biotype = gtf.getmetavalue(geneTab,"gene_biotype")
+geneTab = unique(geneTab)
+rownames(geneTab) = geneTab$GeneID
+geneTab = unique(geneTab[,- c(9,6,2,3,8)])
+colnames(geneTab)[1:4] = c("seqname","start","end", "strand")
+saveRDS(geneTab,file=paste0(args[2],".rds"))
+write.table(geneTab,file=paste0(args[2],".tsv"),quote=F,sep="\t")
+R_SCRIPT
+    chmod 0755 "$target"
 }
 
 vep_exec() {
@@ -638,6 +658,7 @@ build_reference() {
     fi
 
     log "Generating pipeline metadata artifacts"
+    write_proc_gtf_script
     awk -F $'\t' '$3 == "gene" { print }' "${BUILD_DIR}/ref.gtf" \
         >"${BUILD_DIR}/ref.GeneLvlOnly.gtf"
     awk -F $'\t' '$3 == "exon" { print $1 "\t" ($4 - 1) "\t" $5 }' \
@@ -652,7 +673,7 @@ build_reference() {
         | awk 'BEGIN {print "exon_id\tstart\tend\tstrand\tgene_id\tgene_name"} { print }' \
         >"${BUILD_DIR}/Exon_gtf_info.tab"
 
-    r_exec Rscript /pipeline/procGTF.R \
+    r_exec Rscript /work/procGTF.R \
         /work/ref.GeneLvlOnly.gtf \
         /work/refGeneID_ensembl_v107
 

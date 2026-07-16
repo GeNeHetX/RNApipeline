@@ -100,13 +100,28 @@ and published atomically below `/ref`. The `TOD_infra.config` profile uses
 `/biojobs/nextflow/NAME/work` directory. Reuse the same named run with
 `-resume`; do not create a new random run name for every retry.
 
-The TOD reference builder also prepares the architecture-specific Kallisto
-containers without changing the IFB or GCP configurations. Run the following
-on a `pam_cpu` ARM64 worker before the full reference build:
+The TOD reference builder prepares the complete reference and the
+architecture-specific Kallisto containers in one run. Submit it from `ctra`
+through the IAC `slurm-run` launcher; the repository script contains no site
+specific log or scheduler paths:
 
 ```bash
-sbatch --wait --partition=pam_cpu \
-  PrePostScripts/ref_build_tod.sh --kallisto-only
+source "$HOME/IAC/infra/scripts/shell-setup"
+REPO="$HOME/rna/RNApipeline-tod"
+
+slurm-run \
+  --name rnapipeline-ref-full \
+  --partition pam_cpu \
+  --chdir /biojobs \
+  --log-dir /biojobs/operations/slurm/rnapipeline-ref-full/logs \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=48:00:00 \
+  --wait \
+  -- "$REPO/PrePostScripts/ref_build_tod.sh" \
+  --ref-root /ref \
+  --work-root /srv/slurm/scratch \
+  --force
 ```
 
 This publishes Kallisto 0.51.1 under
@@ -116,8 +131,10 @@ SIF after Slurm has assigned the task, so `pam_cpu`, `pam_gpu`, and
 `rna_burst` can all use every eligible machine. `rna_burst` still requires
 burst mode to be enabled by the infrastructure.
 
-If the earlier queue-specific bundle was already published, rerun the command
-with `--force` so the wrapper is added.
+The build validates that every image used on the ARM worker is executable on
+ARM64 and publishes the architecture-independent reference plus both Kallisto
+SIF variants. `--force` replaces an existing reference only after the staged
+build succeeds.
 
 ## 3. Setting up  ##
 The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platform \
