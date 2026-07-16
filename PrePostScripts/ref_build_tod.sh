@@ -11,7 +11,8 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # Build the complete precomputed reference used by RNApipeline on TOD/PAM.
-# The build is staged on local Slurm scratch and published atomically to NFS.
+# The build is staged on local Slurm scratch and published atomically to the
+# direct CephFS reference mount.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -47,7 +48,7 @@ Options:
   --keep-work              Keep the local scratch build directory on success.
   --ref-root PATH          Override /ref for testing or controlled staging.
   --work-root PATH         Override the local scratch build root.
-  --skip-mount-check       Skip the NFS filesystem check (tests only).
+  --skip-mount-check       Skip the CephFS mount check (tests only).
   -h, --help               Show this help.
 EOF
 }
@@ -156,7 +157,7 @@ check_ref_mount() {
         require_cmd findmnt
         local fstype
         fstype="$(findmnt -T "$REF_ROOT" -n -o FSTYPE 2>/dev/null || true)"
-        [[ "$fstype" == nfs* ]] || die "$REF_ROOT is not mounted as NFS (detected: ${fstype:-none})"
+        [[ "$fstype" == ceph ]] || die "$REF_ROOT is not mounted as CephFS (detected: ${fstype:-none})"
     fi
 
     [[ -w "$REF_ROOT" ]] || die "reference root is not writable: $REF_ROOT"

@@ -90,6 +90,16 @@ For this step, you will need:
      * Get a Known-variants file: You can retrieve it from Ensembl Database. 
 This step requires 32Go RAM, so it is advised to generate once for the same genome, however you can generate it using the pipeline also by changing parameter in the config files (nextflow.config and nextflowGCP.config)=> explained in the __setting up__ setp.
 
+### TOD/PAM infrastructure
+
+On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount, not an
+NFS mount. Reference preparation is staged on node-local `/srv/slurm/scratch`
+and published atomically below `/ref`. The `TOD_infra.config` profile uses
+`/srv/slurm/scratch` for Nextflow scratch and does not define a global
+`workDir`; the IAC `nf-run --run-name NAME` launcher supplies the per-run
+`/biojobs/nextflow/NAME/work` directory. Reuse the same named run with
+`-resume`; do not create a new random run name for every retry.
+
 ## 3. Setting up  ## 
 The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platform \
 For a local execution, modify the local.config file and for Google Cloud execution, modify the GoogleCloud.config or GCP_PE_minimal.config, by changing the following parameters if necessary :
