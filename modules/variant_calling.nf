@@ -18,6 +18,7 @@ process gatk_vc {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	mkdir -p ${params.tmpdir}
 
@@ -121,6 +122,7 @@ process SortingSam {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	mkdir -p ${params.tmpdir}
 
@@ -152,6 +154,7 @@ process AddOrReplaceReadGroups {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## 3') Alignement Summary step (CollectAlignmentSummaryMetrics et CollectInsertSizeMetrics)
 	## (TODO)
@@ -187,6 +190,7 @@ process MarkDuplicates {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## MergeBamAlignment (voir si ça améliore la qualité ou pas)
 	## 5) Marking duplicates
@@ -216,6 +220,7 @@ process SplitNCigar {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## 6) SplitNCigar
 
@@ -243,6 +248,7 @@ process BaseRecalibrator {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## 7) BaseRecalibrator + ApplyBQSR
 	java -jar $params.gatk BaseRecalibrator \
@@ -273,6 +279,7 @@ process ApplyBQSR {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	java -jar $params.gatk ApplyBQSR \
 		-R $ref_data/ref.fa \
@@ -302,6 +309,7 @@ process BedToIntervalList {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## 8) BedToIntervalList (Bed réduit sur exons)
 	java -jar $params.gatk BedToIntervalList \
@@ -334,6 +342,7 @@ process HaplotypeCaller {
 	when:
 	params.gatk4 == true
 
+	script:
 	"""
 	## 10) HaplotypeCaller
 	java -jar $params.gatk HaplotypeCaller  \

@@ -15,6 +15,7 @@ process buildref{
 	output:
 	path "refdata" 
 	
+	script:
 	
 	"""
 	mkdir refdata
@@ -51,6 +52,5 @@ process buildref{
 	"""
 
 }
-
 
 

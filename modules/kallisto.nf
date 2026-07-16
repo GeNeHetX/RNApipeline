@@ -19,6 +19,8 @@ process KallistoPE {
 
 	when:
 	params.kallisto == true
+
+	script:
 	"""
 
 
@@ -44,6 +46,8 @@ process Kallisto_single_end {
 
 	when:
 	params.kallisto == true
+
+	script:
 	"""
 
 	kallisto quant --single -l ${params.read_len} -s ${params.read_sd}  -i $idx/kalliso_index -t ${task.cpus} -o ${Sample} ${fastqFile}

@@ -19,7 +19,7 @@ REF="/path/to/pdacrna/ensembl_v107_GRCh38b_kallisto_v0.51"
 RNAPIPE_DIR="/path/to/RNApipeline/"
 
 ### Don't touch variables below this line
-nextflow -c $CONFIG run $RNAPIPE_DIR/fullPairedEnd.nf -entry Main\
+nextflow -c $CONFIG run $RNAPIPE_DIR/fullPairedEnd.nf \
     -with-report report_$PROJECTID.html -resume \
     --csvSample $SAMPLE_CSV \
     --ref $REF \

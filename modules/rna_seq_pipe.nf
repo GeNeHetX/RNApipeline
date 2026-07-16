@@ -97,16 +97,12 @@ process samtools_index {
 }
 
 process doSTAR {
-	publishDir "${params.outputdir}/UnmappedReads_output", mode: 'copy', pattern: "Unmapped_${sample}_R{1,2}.fastq.gz"
+	publishDir "${params.outputdir}/UnmappedReads_output", mode: 'copy', pattern: "Unmapped_*_R{1,2}.fastq.gz"
 	publishDir "${params.outputdir}/StarLog_output", mode: 'copy', pattern: "*StarOutLog.final.out"
 
 	input :
 	path index
 	tuple val(sample), file(fqFile)
-
-	when:
-	params.star == true
-
 
 	output:
 	path "${sample}StarOutAligned.sortedByCoord.out.bam"
@@ -115,6 +111,8 @@ process doSTAR {
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
+	when:
+	params.star == true
 
 	script:
 
@@ -177,6 +175,7 @@ process FCounts {
 	path "*exonscount.txt"
 	path "*genecount.txt"
 
+	script:
 	"""
 	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
 

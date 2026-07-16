@@ -155,10 +155,9 @@ workflow Analysis_SE{
       qc_out = multiqc.out[1]
 }
 
-def date = new java.util.Date()
-import groovy.json.JsonOutput
+workflow {
+  def date = new java.util.Date()
 
-workflow Main {
   // 1. Check_samples
   def sample_checked_csv
   if (params.check_samples != false) {

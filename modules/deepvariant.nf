@@ -26,6 +26,8 @@ process Mosdepth {
 
 	when:
 	params.deepvariant == true
+
+	script:
 	"""
    
     mosdepth --threads ${params.nproc} \
@@ -89,6 +91,8 @@ process Deepvariant {
 
 	when:
 	params.deepvariant == true
+
+	script:
 	"""
     run_deepvariant \
     --model_type=WES \

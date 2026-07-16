@@ -120,7 +120,7 @@ CORE_SIF="${IMAGE_DIR}/genehetx-rnaseq-v1.6.1.sif"
 KALLISTO_SIF="${IMAGE_DIR}/kallisto-${KALLISTO_VERSION}-arm64.sif"
 KALLISTO_AMD64_SIF="${IMAGE_DIR}/kallisto-${KALLISTO_VERSION}-amd64.sif"
 R_SIF="${IMAGE_DIR}/r-ver-4.3.3.sif"
-VEP_SIF="${IMAGE_DIR}/ensembl-vep-113.2.sif"
+VEP_SIF="${IMAGE_DIR}/ensembl-vep-113.2-amd64.sif"
 
 PICARD_JAR=""
 GATK_JAR=""
@@ -588,21 +588,28 @@ record_tool_versions() {
     core_exec java -version >"${BUILD_DIR}/tool-versions.java.txt" 2>&1
     kallisto_exec kallisto version >"${BUILD_DIR}/tool-versions.kallisto.txt" 2>&1
     r_exec R --version >"${BUILD_DIR}/tool-versions.r.txt" 2>&1
-    vep_exec vep --version >"${BUILD_DIR}/tool-versions.vep.txt" 2>&1
+    if [[ "$(host_apptainer_arch)" == "amd64" ]]; then
+        vep_exec vep --version >"${BUILD_DIR}/tool-versions.vep.txt" 2>&1
+    else
+        printf 'VEP 113.2 (AMD64 image; runtime validation deferred)\n' \
+            >"${BUILD_DIR}/tool-versions.vep.txt"
+    fi
 }
 
 build_reference() {
     mkdir -p -- "${BUILD_DIR}/sources" "${BUILD_DIR}/VEP" "${BUILD_DIR}/images" \
         "${BUILD_DIR}/apptainer-tmp"
 
-    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache}"
+    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache/${USER:-unknown}}"
     export APPTAINER_TMPDIR="${BUILD_DIR}/apptainer-tmp"
     mkdir -p -- "$APPTAINER_CACHEDIR"
 
     ensure_image "$CORE_SIF" "$CORE_IMAGE_SOURCE"
     prepare_kallisto_sifs
     ensure_image "$R_SIF" "$R_IMAGE_SOURCE"
-    ensure_image "$VEP_SIF" "$VEP_IMAGE_SOURCE"
+    # The upstream VEP tag is AMD64-only. The cache itself is architecture
+    # independent, so ARM builders retain the image for later TOD validation.
+    pull_arch_image "$VEP_SIF" "$VEP_IMAGE_SOURCE" amd64
 
     PICARD_JAR="$(detect_core_path \
         "${PICARD_JAR:-}" \
@@ -714,27 +721,31 @@ validate_reference() {
         -R /work/ref.fa \
         --SEQUENCE_DICTIONARY /work/ref.dict
 
-    log "Validating VEP cache offline"
-    {
-        printf '##fileformat=VCFv4.2\n'
-        printf '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n'
-        awk '!/^#/ { print; exit }' "${BUILD_DIR}/knowns_variants.vcf"
-    } >"${BUILD_DIR}/vep_smoke.vcf"
-    [[ -s "${BUILD_DIR}/vep_smoke.vcf" ]] || die "could not create VEP smoke VCF"
+    if [[ "$(host_apptainer_arch)" == "amd64" ]]; then
+        log "Validating VEP cache offline"
+        {
+            printf '##fileformat=VCFv4.2\n'
+            printf '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n'
+            awk '!/^#/ { print; exit }' "${BUILD_DIR}/knowns_variants.vcf"
+        } >"${BUILD_DIR}/vep_smoke.vcf"
+        [[ -s "${BUILD_DIR}/vep_smoke.vcf" ]] || die "could not create VEP smoke VCF"
 
-    vep_exec vep \
-        -i /work/vep_smoke.vcf \
-        -o /work/vep_smoke.out.vcf \
-        --format vcf \
-        --vcf \
-        --offline \
-        --cache \
-        --dir_cache /work/VEP \
-        --fasta /work/ref.fa \
-        --species homo_sapiens \
-        --assembly GRCh38 \
-        --force_overwrite
-    [[ -s "${BUILD_DIR}/vep_smoke.out.vcf" ]] || die "VEP smoke annotation produced no output"
+        vep_exec vep \
+            -i /work/vep_smoke.vcf \
+            -o /work/vep_smoke.out.vcf \
+            --format vcf \
+            --vcf \
+            --offline \
+            --cache \
+            --dir_cache /work/VEP \
+            --fasta /work/ref.fa \
+            --species homo_sapiens \
+            --assembly GRCh38 \
+            --force_overwrite
+        [[ -s "${BUILD_DIR}/vep_smoke.out.vcf" ]] || die "VEP smoke annotation produced no output"
+    else
+        log "VEP cache structure is valid; AMD64 runtime smoke is deferred to TOD burst"
+    fi
 
     rm -f -- "${BUILD_DIR}/ref.ExonsOnly.interval_list" \
         "${BUILD_DIR}/vep_smoke.vcf" "${BUILD_DIR}/vep_smoke.out.vcf"
@@ -856,6 +867,7 @@ containers["kallisto"].update({
         },
     },
 })
+containers["vep"]["architecture"] = "amd64"
 
 versions = {}
 for name in ("core", "samtools", "java", "kallisto", "r", "vep"):
@@ -888,6 +900,10 @@ manifest = {
         "cache_path": "VEP",
         "species": "homo_sapiens",
         "assembly": "GRCh38",
+        "runtime_validation": (
+            "passed" if os.environ["APPTAINER_ARCH"] == "amd64"
+            else "deferred-to-amd64-worker"
+        ),
     },
     "source_inputs": {
         name: {"url": source_urls[name], "sha256": sha256(path)}
@@ -988,7 +1004,7 @@ main() {
     mkdir -p -- "$WORK_ROOT"
     [[ -w "$WORK_ROOT" ]] || die "work root is not writable: $WORK_ROOT"
     acquire_build_lock
-    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache}"
+    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache/${USER:-unknown}}"
     export APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${BUILD_DIR}/apptainer-tmp}"
     mkdir -p -- "$APPTAINER_CACHEDIR" "$APPTAINER_TMPDIR"
 

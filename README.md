@@ -92,25 +92,24 @@ This step requires 32Go RAM, so it is advised to generate once for the same geno
 
 ### TOD/PAM infrastructure
 
-On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount, not an
-NFS mount. Reference preparation is staged on node-local `/srv/slurm/scratch`
-and published atomically below `/ref`. The `TOD_infra.config` profile uses
-`/srv/slurm/scratch` for Nextflow scratch and does not define a global
-`workDir`; the IAC `nf-run --run-name NAME` launcher supplies the per-run
-`/biojobs/nextflow/NAME/work` directory. Reuse the same named run with
-`-resume`; do not create a new random run name for every retry.
+On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount. Reference
+preparation is staged on node-local `/srv/slurm/scratch` and published
+atomically below `/ref`. IAC `/etc/nextflow/site.config` owns Slurm, scratch,
+Apptainer, caches, and queue profiles. `TOD_infra.config` contains only
+RNApipeline parameters and process resources. The `nf-run NAME` launcher
+supplies the per-run `/biojobs/nextflow/NAME/work` directory. Repeating the same
+name resumes the existing run; do not create a new random run name for every
+retry.
 
 The TOD reference builder prepares the complete reference and the
 architecture-specific Kallisto containers in one Nextflow run. `nf-run` runs
-the coordinator on `ctra`; the `user_slurm` profile submits the build task to
-the serving `pam_cpu` queue:
+the coordinator on `ctra`; the site default submits the build task to the
+serving `pam_cpu` queue:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
-nf-run \
-  --run-name rnapipeline-ref-full \
+nf-run rnapipeline-ref-full \
   "$HOME/rna/RNApipeline-tod/PrePostScripts/ref_build.nf" \
-  -profile user_slurm \
   --ref_root /ref \
   --work_root /srv/slurm/scratch \
   --force
@@ -123,10 +122,26 @@ SIF after Slurm has assigned the task, so `pam_cpu`, `pam_gpu`, and
 `rna_burst` can all use every eligible machine. `rna_burst` still requires
 burst mode to be enabled by the infrastructure.
 
-The build validates that every image used on the ARM worker is executable on
-ARM64 and publishes the architecture-independent reference plus both Kallisto
-SIF variants. `--force` replaces an existing reference only after the staged
-build succeeds.
+For a normal pipeline run, add the project config after the site defaults:
+
+```bash
+nf-run lung-test "$HOME/rna/RNApipeline-tod/fullPairedEnd.nf" \
+  -c "$HOME/rna/RNApipeline-tod/configExamples/TOD_infra.config"
+```
+
+This publishes to `s3://process/rnapipeline/lung-test`. Add
+`--outputdir results` when durable output should stay in the run's local
+`results/` directory instead.
+
+Use `-profile burst` only while the infrastructure is in RNA-seq burst mode.
+If optional AMD64-only tools such as VEP are enabled, use `-profile amd64` so
+all tasks are routed to TOD workers instead of PAM.
+
+The build validates the images it executes on ARM64 and publishes the
+architecture-independent reference plus both Kallisto SIF variants. The
+upstream VEP image is AMD64-only, so an ARM reference build records its VEP
+runtime check as deferred to a TOD worker. `--force` replaces an existing
+reference only after the staged build succeeds.
 
 ## 3. Setting up  ##
 The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platform \
@@ -192,7 +207,7 @@ For the execution setup, go to your working directory :
   RNAPIPE_DIR="/path/to/RNApipeline/"
 
   ### Don't touch variables below this line
-  nextflow -c $CONFIG run $RNAPIPE_DIR/RNApipeline.nf -entry Main\
+  nextflow -c $CONFIG run $RNAPIPE_DIR/fullPairedEnd.nf \
       -with-report report_$PROJECTID.html -resume \ 
       --csvSample $SAMPLE_CSV \
       --ref $REF \
