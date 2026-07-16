@@ -11,7 +11,7 @@ process BUILD_REFERENCE {
     time '48h'
 
     input:
-    path builder
+    path builder, stageAs: 'ref_build_tod.sh'
 
     output:
     path 'reference-build.done'
@@ -19,7 +19,7 @@ process BUILD_REFERENCE {
     script:
     def force_arg = params.force ? '--force' : ''
     """
-    bash ${builder} \
+    bash ref_build_tod.sh \
         --ref-root '${params.ref_root}' \
         --work-root '${params.work_root}' \
         ${force_arg}
