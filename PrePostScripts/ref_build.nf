@@ -17,9 +17,10 @@ process BUILD_REFERENCE {
     path 'reference-build.done'
 
     script:
+    def staged_builder = builder
     def force_arg = params.force ? '--force' : ''
     """
-    bash ref_build_tod.sh \
+    bash '${staged_builder}' \
         --ref-root '${params.ref_root}' \
         --work-root '${params.work_root}' \
         ${force_arg}
