@@ -101,26 +101,18 @@ and published atomically below `/ref`. The `TOD_infra.config` profile uses
 `-resume`; do not create a new random run name for every retry.
 
 The TOD reference builder prepares the complete reference and the
-architecture-specific Kallisto containers in one run. Submit it from `ctra`
-through the IAC `slurm-run` launcher; the repository script contains no site
-specific log or scheduler paths:
+architecture-specific Kallisto containers in one Nextflow run. `nf-run` runs
+the coordinator on `ctra`; the `user_slurm` profile submits the build task to
+the serving `pam_cpu` queue:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
-REPO="$HOME/rna/RNApipeline-tod"
-
-slurm-run \
-  --name rnapipeline-ref-full \
-  --partition pam_cpu \
-  --chdir /biojobs \
-  --log-dir /biojobs/operations/slurm/rnapipeline-ref-full/logs \
-  --cpus-per-task=16 \
-  --mem=64G \
-  --time=48:00:00 \
-  --wait \
-  -- "$REPO/PrePostScripts/ref_build_tod.sh" \
-  --ref-root /ref \
-  --work-root /srv/slurm/scratch \
+nf-run \
+  --run-name rnapipeline-ref-full \
+  "$HOME/rna/RNApipeline-tod/PrePostScripts/ref_build.nf" \
+  -profile user_slurm \
+  --ref_root /ref \
+  --work_root /srv/slurm/scratch \
   --force
 ```
 
