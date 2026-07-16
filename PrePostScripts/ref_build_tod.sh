@@ -17,15 +17,19 @@ IFS=$'\n\t'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 REFERENCE_ID="ensembl_v107_GRCh38"
+PIPELINE_VERSION="1.7.0"
+KALLISTO_VERSION="0.51.1"
 REF_ROOT="/ref"
 WORK_ROOT="${SLURM_TMPDIR:-/srv/slurm/scratch}"
 CHECK_ONLY=0
 FORCE=0
 KEEP_WORK=0
 SKIP_MOUNT_CHECK=0
+KALLISTO_ONLY=0
 
 CORE_IMAGE_SOURCE="docker://genehetx/genehetx-rnaseq:v1.6.1"
 KALLISTO_IMAGE_SOURCE="docker://quay.io/biocontainers/kallisto:0.51.1--heb0cbe2_0"
+KALLISTO_SOURCE_URL="https://github.com/pachterlab/kallisto/archive/refs/tags/v0.51.1.tar.gz"
 R_IMAGE_SOURCE="docker://rocker/r-ver:4.3.3"
 VEP_IMAGE_SOURCE="docker://quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0"
 
@@ -43,8 +47,10 @@ Build the RNApipeline Ensembl 107 reference on a TOD/PAM Slurm worker.
 
 Options:
   --check-only             Validate the mount, tools, and source URLs only.
+  --kallisto-only          Build and publish the ARM64 and AMD64 Kallisto SIFs,
+                           then exit without rebuilding the reference.
   --force                  Replace an existing reference after preserving it
-                           under /ref/.staging/.
+                           under /ref/.staging/. Also replace the Kallisto SIFs.
   --keep-work              Keep the local scratch build directory on success.
   --ref-root PATH          Override /ref for testing or controlled staging.
   --work-root PATH         Override the local scratch build root.
@@ -70,6 +76,10 @@ while (($# > 0)); do
     case "$1" in
         --check-only)
             CHECK_ONLY=1
+            shift
+            ;;
+        --kallisto-only)
+            KALLISTO_ONLY=1
             shift
             ;;
         --force)
@@ -110,9 +120,15 @@ BUILD_DIR="${WORK_ROOT%/}/rnapipeline-ref-${REFERENCE_ID}"
 LOCK_DIR="${BUILD_DIR}.lock"
 STAGE_DIR="${REF_ROOT%/}/.staging/${REFERENCE_ID}.${CURRENT_JOB}"
 IMAGE_DIR="${BUILD_DIR}/images"
+KALLISTO_TOOL_ROOT="${REF_ROOT%/}/tools/rnapipeline/v${PIPELINE_VERSION}/kallisto/${KALLISTO_VERSION}"
+KALLISTO_ARM_SIF_PATH="${KALLISTO_TOOL_ROOT}/arm64/kallisto-${KALLISTO_VERSION}.sif"
+KALLISTO_AMD64_SIF_PATH="${KALLISTO_TOOL_ROOT}/amd64/kallisto-${KALLISTO_VERSION}.sif"
+KALLISTO_SOURCE_ARCHIVE="${BUILD_DIR}/sources/kallisto-v${KALLISTO_VERSION}.tar.gz"
+KALLISTO_STAGE_DIR=""
 
 CORE_SIF="${IMAGE_DIR}/genehetx-rnaseq-v1.6.1.sif"
-KALLISTO_SIF="${IMAGE_DIR}/kallisto-0.51.1.sif"
+KALLISTO_SIF="${IMAGE_DIR}/kallisto-${KALLISTO_VERSION}-arm64.sif"
+KALLISTO_AMD64_SIF="${IMAGE_DIR}/kallisto-${KALLISTO_VERSION}-amd64.sif"
 R_SIF="${IMAGE_DIR}/r-ver-4.3.3.sif"
 VEP_SIF="${IMAGE_DIR}/ensembl-vep-113.2.sif"
 
@@ -138,6 +154,9 @@ cleanup() {
         fi
         if ((rc != 0)) && [[ -n "${STAGE_DIR:-}" && -d "${STAGE_DIR:-}" ]]; then
             rm -rf -- "$STAGE_DIR"
+        fi
+        if ((rc != 0)) && [[ -n "${KALLISTO_STAGE_DIR:-}" && -d "${KALLISTO_STAGE_DIR:-}" ]]; then
+            rm -rf -- "$KALLISTO_STAGE_DIR"
         fi
     else
         if [[ -n "${BUILD_DIR:-}" && -d "${BUILD_DIR:-}" ]]; then
@@ -169,7 +188,7 @@ check_ref_mount() {
 
 check_source_urls() {
     local url
-    for url in "$GENOME_URL" "$GTF_URL" "$CDNA_URL" "$KNOWN_VCF_URL" "$VEP_CACHE_URL"; do
+    for url in "$GENOME_URL" "$GTF_URL" "$CDNA_URL" "$KNOWN_VCF_URL" "$VEP_CACHE_URL" "$KALLISTO_SOURCE_URL"; do
         log "Checking source URL: $url"
         curl -fsSIL --retry 3 --connect-timeout 10 --max-time 60 "$url" >/dev/null \
             || die "source URL is not reachable: $url"
@@ -237,6 +256,253 @@ ensure_image() {
     [[ -s "$target" ]] || die "Apptainer pull did not produce: $target"
     image_matches_arch "$target" \
         || die "Apptainer image has the wrong or unusable architecture: $target (expected $APPTAINER_ARCH)"
+}
+
+pull_arch_image() {
+    local target="$1"
+    local source="$2"
+    local arch="$3"
+
+    if [[ -s "$target" ]]; then
+        log "Using cached ${arch} image: $target"
+        return
+    fi
+
+    log "Pulling ${arch} Apptainer image: $source"
+    mkdir -p -- "$(dirname "$target")"
+    "$APPTAINER_BIN" pull --arch "$arch" "$target" "$source"
+    [[ -s "$target" ]] || die "Apptainer pull did not produce: $target"
+    "$APPTAINER_BIN" inspect "$target" >/dev/null \
+        || die "Apptainer produced an invalid SIF: $target"
+}
+
+write_kallisto_definition() {
+    local definition="$1"
+    local build_cpus="${SLURM_CPUS_PER_TASK:-16}"
+
+    cat >"$definition" <<EOF
+Bootstrap: docker
+From: ubuntu:22.04
+
+%files
+    ${KALLISTO_SOURCE_ARCHIVE} /tmp/kallisto-source.tar.gz
+
+%post
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \\
+        autoconf automake build-essential ca-certificates cmake \\
+        libhdf5-dev procps zlib1g-dev
+    tar -xzf /tmp/kallisto-source.tar.gz -C /opt
+    cd /opt/kallisto-${KALLISTO_VERSION}/ext/htslib
+    autoheader
+    autoconf
+    cd ../..
+    cmake -S . -B build \\
+        -DCMAKE_BUILD_TYPE=Release \\
+        -DCMAKE_INSTALL_PREFIX=/usr/local \\
+        -DUSE_HDF5=ON
+    cmake --build build --parallel ${build_cpus}
+    install -m 0755 build/src/kallisto /usr/local/bin/kallisto
+    kallisto version | grep -F 'kallisto, version ${KALLISTO_VERSION}'
+    rm -rf /opt/kallisto-${KALLISTO_VERSION} /tmp/kallisto-source.tar.gz
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH="/usr/local/bin:\$PATH"
+
+%test
+    /usr/local/bin/kallisto version
+EOF
+}
+
+build_arm_kallisto_sif() {
+    local target="$1"
+    local definition="${BUILD_DIR}/kallisto-${KALLISTO_VERSION}-arm64.def"
+
+    [[ "$(host_apptainer_arch)" == "arm64" ]] \
+        || die "the ARM64 Kallisto SIF must be built on an ARM64 Slurm worker"
+
+    write_kallisto_definition "$definition"
+    log "Building native ARM64 Kallisto ${KALLISTO_VERSION} SIF"
+    "$APPTAINER_BIN" build --fakeroot "$target" "$definition"
+    [[ -s "$target" ]] || die "ARM64 Kallisto build did not produce: $target"
+    image_matches_arch "$target" \
+        || die "built Kallisto SIF is not executable on ARM64: $target"
+}
+
+prepare_kallisto_sifs() {
+    local arm_work="$KALLISTO_SIF"
+    local amd64_work="$KALLISTO_AMD64_SIF"
+
+    mkdir -p -- "${BUILD_DIR}/sources" "$IMAGE_DIR"
+    download_file "$KALLISTO_SOURCE_URL" "$KALLISTO_SOURCE_ARCHIVE"
+    tar -tzf "$KALLISTO_SOURCE_ARCHIVE" \
+        | awk -v expected="kallisto-${KALLISTO_VERSION}/" '$0 == expected { found = 1 } END { exit !found }' \
+        || die "Kallisto source archive does not contain kallisto-${KALLISTO_VERSION}/"
+
+    if [[ -e "$KALLISTO_TOOL_ROOT" || -L "$KALLISTO_TOOL_ROOT" ]] && ((FORCE == 0)); then
+        [[ -s "$KALLISTO_ARM_SIF_PATH" && -s "$KALLISTO_AMD64_SIF_PATH" \
+            && -x "${KALLISTO_TOOL_ROOT}/bin/kallisto" \
+            && -s "${KALLISTO_TOOL_ROOT}/kallisto_manifest.json" ]] \
+            || die "existing Kallisto SIF bundle is incomplete: $KALLISTO_TOOL_ROOT (use --force)"
+        if ! image_matches_arch "$KALLISTO_ARM_SIF_PATH"; then
+            die "existing ARM64 Kallisto SIF is unusable: $KALLISTO_ARM_SIF_PATH (use --force)"
+        fi
+        cp -p -- "$KALLISTO_ARM_SIF_PATH" "$arm_work"
+        cp -p -- "$KALLISTO_AMD64_SIF_PATH" "$amd64_work"
+    else
+        build_arm_kallisto_sif "$arm_work"
+        pull_arch_image "$amd64_work" "$KALLISTO_IMAGE_SOURCE" amd64
+    fi
+}
+
+validate_kallisto_sifs() {
+    [[ -s "$KALLISTO_SIF" ]] || die "missing ARM64 Kallisto SIF: $KALLISTO_SIF"
+    [[ -s "$KALLISTO_AMD64_SIF" ]] || die "missing AMD64 Kallisto SIF: $KALLISTO_AMD64_SIF"
+    image_matches_arch "$KALLISTO_SIF" \
+        || die "ARM64 Kallisto SIF is not executable on this worker: $KALLISTO_SIF"
+    "$APPTAINER_BIN" inspect "$KALLISTO_AMD64_SIF" >/dev/null \
+        || die "AMD64 Kallisto SIF is invalid: $KALLISTO_AMD64_SIF"
+
+    local version
+    version="$(kallisto_exec kallisto version 2>&1)"
+    [[ "$version" == *"${KALLISTO_VERSION}"* ]] \
+        || die "ARM64 Kallisto version mismatch: $version"
+    log "Validated native ARM64 Kallisto ${KALLISTO_VERSION} and AMD64 SIF"
+}
+
+write_kallisto_manifest() {
+    local stage="$1"
+    export KALLISTO_MANIFEST_STAGE="$stage"
+    export KALLISTO_MANIFEST_ARM_SIF="$KALLISTO_SIF"
+    export KALLISTO_MANIFEST_AMD64_SIF="$KALLISTO_AMD64_SIF"
+    export KALLISTO_MANIFEST_SOURCE_ARCHIVE="$KALLISTO_SOURCE_ARCHIVE"
+    export KALLISTO_MANIFEST_SOURCE_URL="$KALLISTO_SOURCE_URL"
+    export KALLISTO_MANIFEST_IMAGE_SOURCE="$KALLISTO_IMAGE_SOURCE"
+    export KALLISTO_MANIFEST_TOOL_ROOT="$KALLISTO_TOOL_ROOT"
+
+    python3 - <<'PY'
+import hashlib
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+stage = Path(os.environ["KALLISTO_MANIFEST_STAGE"])
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+manifest = {
+    "manifest_schema_version": 1,
+    "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+    "pipeline": "RNApipeline",
+    "pipeline_version": "1.7.0",
+    "tool": "kallisto",
+    "tool_version": "0.51.1",
+    "source": {
+        "arm64_build_url": os.environ["KALLISTO_MANIFEST_SOURCE_URL"],
+        "arm64_source_archive_sha256": sha256(Path(os.environ["KALLISTO_MANIFEST_SOURCE_ARCHIVE"])),
+        "amd64_image": os.environ["KALLISTO_MANIFEST_IMAGE_SOURCE"],
+    },
+    "containers": {
+        "arm64": {
+            "path": os.path.join(os.environ["KALLISTO_MANIFEST_TOOL_ROOT"], "arm64", "kallisto-0.51.1.sif"),
+            "sha256": sha256(Path(os.environ["KALLISTO_MANIFEST_ARM_SIF"])),
+            "build": "pachterlab/kallisto v0.51.1 built natively on ARM64",
+        },
+        "amd64": {
+            "path": os.path.join(os.environ["KALLISTO_MANIFEST_TOOL_ROOT"], "amd64", "kallisto-0.51.1.sif"),
+            "sha256": sha256(Path(os.environ["KALLISTO_MANIFEST_AMD64_SIF"])),
+            "build": "quay.io/biocontainers pinned Kallisto 0.51.1 image",
+        },
+    },
+    "wrapper": {
+        "path": os.path.join(os.environ["KALLISTO_MANIFEST_TOOL_ROOT"], "bin", "kallisto"),
+        "sha256": sha256(stage / "bin/kallisto"),
+        "selects_by_host_architecture": True,
+    },
+}
+
+(stage / "kallisto_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+PY
+}
+
+write_kallisto_wrapper() {
+    local wrapper="$1"
+
+    cat >"$wrapper" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+case "$(uname -m)" in
+    aarch64|arm64)
+        IMAGE="${ROOT_DIR}/arm64/kallisto-0.51.1.sif"
+        ;;
+    x86_64)
+        IMAGE="${ROOT_DIR}/amd64/kallisto-0.51.1.sif"
+        ;;
+    *)
+        echo "Unsupported host architecture for Kallisto: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+
+APPTAINER_BIN="${APPTAINER_BIN:-apptainer}"
+command -v "$APPTAINER_BIN" >/dev/null 2>&1 \
+    || { echo "Apptainer is required to run Kallisto" >&2; exit 1; }
+[[ -s "$IMAGE" ]] \
+    || { echo "No Kallisto SIF for host architecture: $IMAGE" >&2; exit 1; }
+
+exec "$APPTAINER_BIN" exec --no-home "$IMAGE" kallisto "$@"
+EOF
+    chmod 0755 "$wrapper"
+}
+
+publish_kallisto_sifs() {
+    local final_parent="${REF_ROOT%/}/tools/rnapipeline/v${PIPELINE_VERSION}/kallisto"
+    local final_dir="$KALLISTO_TOOL_ROOT"
+    local backup=""
+
+    if [[ -e "$final_dir" || -L "$final_dir" ]] && ((FORCE == 0)); then
+        log "Kallisto SIF bundle already published: $final_dir"
+        return
+    fi
+
+    KALLISTO_STAGE_DIR="${REF_ROOT%/}/.staging/rnapipeline-kallisto.${CURRENT_JOB}"
+    rm -rf -- "$KALLISTO_STAGE_DIR"
+    mkdir -p -- "${KALLISTO_STAGE_DIR}/arm64" "${KALLISTO_STAGE_DIR}/amd64"
+    cp -p -- "$KALLISTO_SIF" \
+        "${KALLISTO_STAGE_DIR}/arm64/kallisto-${KALLISTO_VERSION}.sif"
+    cp -p -- "$KALLISTO_AMD64_SIF" \
+        "${KALLISTO_STAGE_DIR}/amd64/kallisto-${KALLISTO_VERSION}.sif"
+    mkdir -p -- "${KALLISTO_STAGE_DIR}/bin"
+    write_kallisto_wrapper "${KALLISTO_STAGE_DIR}/bin/kallisto"
+    write_kallisto_manifest "$KALLISTO_STAGE_DIR"
+
+    mkdir -p -- "$final_parent"
+    if [[ -e "$final_dir" || -L "$final_dir" ]]; then
+        backup="${REF_ROOT%/}/.staging/rnapipeline-kallisto.previous.${CURRENT_JOB}"
+        log "Preserving existing Kallisto SIF bundle at: $backup"
+        mv -- "$final_dir" "$backup"
+    fi
+
+    if ! mv -- "$KALLISTO_STAGE_DIR" "$final_dir"; then
+        if [[ -n "$backup" && -e "$backup" ]]; then
+            mv -- "$backup" "$final_dir" || true
+        fi
+        die "could not publish Kallisto SIF bundle to: $final_dir"
+    fi
+    KALLISTO_STAGE_DIR=""
+    log "Published ARM64 and AMD64 Kallisto SIFs: $final_dir"
 }
 
 apptainer_exec() {
@@ -314,7 +580,7 @@ build_reference() {
     mkdir -p -- "$APPTAINER_CACHEDIR"
 
     ensure_image "$CORE_SIF" "$CORE_IMAGE_SOURCE"
-    ensure_image "$KALLISTO_SIF" "$KALLISTO_IMAGE_SOURCE"
+    prepare_kallisto_sifs
     ensure_image "$R_SIF" "$R_IMAGE_SOURCE"
     ensure_image "$VEP_SIF" "$VEP_IMAGE_SOURCE"
 
@@ -477,10 +743,14 @@ write_manifest() {
     export MANIFEST_REFERENCE_ID="$REFERENCE_ID"
     export MANIFEST_CORE_IMAGE_SOURCE="$CORE_IMAGE_SOURCE"
     export MANIFEST_KALLISTO_IMAGE_SOURCE="$KALLISTO_IMAGE_SOURCE"
+    export MANIFEST_KALLISTO_SOURCE_URL="$KALLISTO_SOURCE_URL"
+    export MANIFEST_KALLISTO_SOURCE_ARCHIVE="$KALLISTO_SOURCE_ARCHIVE"
     export MANIFEST_R_IMAGE_SOURCE="$R_IMAGE_SOURCE"
     export MANIFEST_VEP_IMAGE_SOURCE="$VEP_IMAGE_SOURCE"
     export MANIFEST_CORE_SIF="$CORE_SIF"
     export MANIFEST_KALLISTO_SIF="$KALLISTO_SIF"
+    export MANIFEST_KALLISTO_AMD64_SIF="$KALLISTO_AMD64_SIF"
+    export MANIFEST_KALLISTO_TOOL_ROOT="$KALLISTO_TOOL_ROOT"
     export MANIFEST_R_SIF="$R_SIF"
     export MANIFEST_VEP_SIF="$VEP_SIF"
     export MANIFEST_GENOME_URL="$GENOME_URL"
@@ -517,6 +787,7 @@ source_paths = {
     "transcriptome_cdna": build / "sources/Homo_sapiens.GRCh38.cdna.all.fa.gz",
     "known_variants": build / "sources/1000GENOMES-phase_3.vcf.gz",
     "vep_cache_archive": build / "sources/homo_sapiens_vep_113_GRCh38.tar.gz",
+    "kallisto_source": build / "sources/kallisto-v0.51.1.tar.gz",
 }
 source_urls = {
     "genome_fasta": os.environ["MANIFEST_GENOME_URL"],
@@ -524,6 +795,7 @@ source_urls = {
     "transcriptome_cdna": os.environ["MANIFEST_CDNA_URL"],
     "known_variants": os.environ["MANIFEST_KNOWN_VCF_URL"],
     "vep_cache_archive": os.environ["MANIFEST_VEP_CACHE_URL"],
+    "kallisto_source": os.environ["MANIFEST_KALLISTO_SOURCE_URL"],
 }
 
 artifacts = []
@@ -547,6 +819,22 @@ for name, source_key, sif_key in [
         "source": os.environ[source_key],
         "sif_sha256": sha256(sif),
     }
+
+containers["kallisto"].update({
+    "architecture": os.environ["APPTAINER_ARCH"],
+    "source_build_url": os.environ["MANIFEST_KALLISTO_SOURCE_URL"],
+    "source_build_archive_sha256": sha256(Path(os.environ["MANIFEST_KALLISTO_SOURCE_ARCHIVE"])),
+    "architectures": {
+        "arm64": {
+            "path": os.path.join(os.environ["MANIFEST_KALLISTO_TOOL_ROOT"], "arm64", "kallisto-0.51.1.sif"),
+            "sha256": sha256(Path(os.environ["MANIFEST_KALLISTO_SIF"])),
+        },
+        "amd64": {
+            "path": os.path.join(os.environ["MANIFEST_KALLISTO_TOOL_ROOT"], "amd64", "kallisto-0.51.1.sif"),
+            "sha256": sha256(Path(os.environ["MANIFEST_KALLISTO_AMD64_SIF"])),
+        },
+    },
+})
 
 versions = {}
 for name in ("core", "samtools", "java", "kallisto", "r", "vep"):
@@ -650,25 +938,50 @@ main() {
     esac
 
     check_ref_mount
-    check_source_urls
+    if ((KALLISTO_ONLY == 1)); then
+        log "Checking source URL: $KALLISTO_SOURCE_URL"
+        curl -fsSIL --retry 3 --connect-timeout 10 --max-time 60 "$KALLISTO_SOURCE_URL" >/dev/null \
+            || die "source URL is not reachable: $KALLISTO_SOURCE_URL"
+    else
+        check_source_urls
+    fi
 
     if ((CHECK_ONLY == 1)); then
-        if [[ -e "$FINAL_DIR" ]]; then
-            log "Reference already exists: $FINAL_DIR"
+        if ((KALLISTO_ONLY == 1)); then
+            if [[ -e "$KALLISTO_TOOL_ROOT" ]]; then
+                log "Kallisto SIF bundle already exists: $KALLISTO_TOOL_ROOT"
+            else
+                log "Kallisto SIF bundle will be published to: $KALLISTO_TOOL_ROOT"
+            fi
         else
-            log "Reference destination is available: $FINAL_DIR"
+            if [[ -e "$FINAL_DIR" ]]; then
+                log "Reference already exists: $FINAL_DIR"
+            else
+                log "Reference destination is available: $FINAL_DIR"
+            fi
         fi
         log "Preflight checks passed"
+        exit 0
+    fi
+
+    mkdir -p -- "$WORK_ROOT"
+    [[ -w "$WORK_ROOT" ]] || die "work root is not writable: $WORK_ROOT"
+    acquire_build_lock
+    export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/srv/slurm/scratch/.apptainer-cache}"
+    export APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${BUILD_DIR}/apptainer-tmp}"
+    mkdir -p -- "$APPTAINER_CACHEDIR" "$APPTAINER_TMPDIR"
+
+    if ((KALLISTO_ONLY == 1)); then
+        prepare_kallisto_sifs
+        validate_kallisto_sifs
+        publish_kallisto_sifs
+        log "Kallisto-only build completed"
         exit 0
     fi
 
     if [[ -e "$FINAL_DIR" || -L "$FINAL_DIR" ]] && ((FORCE == 0)); then
         die "reference already exists: $FINAL_DIR (use --force to preserve and replace it)"
     fi
-
-    mkdir -p -- "$WORK_ROOT"
-    [[ -w "$WORK_ROOT" ]] || die "work root is not writable: $WORK_ROOT"
-    acquire_build_lock
 
     build_reference
     validate_reference
@@ -692,6 +1005,7 @@ main() {
 
     [[ -s "${FINAL_DIR}/reference_manifest.json" ]] || die "published reference has no manifest"
     log "Published reference: $FINAL_DIR"
+    publish_kallisto_sifs
 }
 
 main "$@"
