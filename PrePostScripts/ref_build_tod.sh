@@ -629,6 +629,7 @@ stage_reference() {
 }
 
 write_manifest() {
+    export APPTAINER_ARCH
     export MANIFEST_BUILD_DIR="$BUILD_DIR"
     export MANIFEST_STAGE_DIR="$STAGE_DIR"
     export MANIFEST_REFERENCE_ID="$REFERENCE_ID"
