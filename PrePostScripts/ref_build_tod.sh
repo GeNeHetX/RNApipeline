@@ -269,9 +269,14 @@ pull_arch_image() {
     local source="$2"
     local arch="$3"
 
-    if [[ -s "$target" ]]; then
+    if [[ -s "$target" ]] && "$APPTAINER_BIN" inspect "$target" >/dev/null 2>&1; then
         log "Using cached ${arch} image: $target"
         return
+    fi
+
+    if [[ -e "$target" ]]; then
+        log "Removing incomplete ${arch} image: $target"
+        rm -f -- "$target"
     fi
 
     log "Pulling ${arch} Apptainer image: $source"
@@ -291,7 +296,7 @@ Bootstrap: docker
 From: ubuntu:22.04
 
 %files
-    ${KALLISTO_SOURCE_ARCHIVE} /tmp/kallisto-source.tar.gz
+    ${KALLISTO_SOURCE_ARCHIVE} /opt/kallisto-source.tar.gz
 
 %post
     set -eux
@@ -300,7 +305,9 @@ From: ubuntu:22.04
     apt-get install -y --no-install-recommends \\
         autoconf automake build-essential ca-certificates cmake \\
         libhdf5-dev procps zlib1g-dev
-    tar -xzf /tmp/kallisto-source.tar.gz -C /opt
+    # Keep the staged source outside /tmp: Apptainer may expose a temporary
+    # runtime mount there during %post, hiding files copied by %files.
+    tar -xzf /opt/kallisto-source.tar.gz -C /opt
     cd /opt/kallisto-${KALLISTO_VERSION}/ext/htslib
     autoheader
     autoconf
@@ -312,7 +319,7 @@ From: ubuntu:22.04
     cmake --build build --parallel ${build_cpus}
     install -m 0755 build/src/kallisto /usr/local/bin/kallisto
     kallisto version | grep -F 'kallisto, version ${KALLISTO_VERSION}'
-    rm -rf /opt/kallisto-${KALLISTO_VERSION} /tmp/kallisto-source.tar.gz
+    rm -rf /opt/kallisto-${KALLISTO_VERSION} /opt/kallisto-source.tar.gz
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
@@ -332,6 +339,7 @@ build_arm_kallisto_sif() {
         || die "the ARM64 Kallisto SIF must be built on an ARM64 Slurm worker"
 
     write_kallisto_definition "$definition"
+    rm -f -- "$target"
     log "Building native ARM64 Kallisto ${KALLISTO_VERSION} SIF"
     "$APPTAINER_BIN" build --fakeroot "$target" "$definition"
     [[ -s "$target" ]] || die "ARM64 Kallisto build did not produce: $target"
