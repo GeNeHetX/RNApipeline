@@ -6,9 +6,11 @@ IFS=$'\n\t'
 # The build is staged in the supplied work root and published atomically to
 # the direct CephFS reference mount. Kallisto SIFs are prebuilt separately.
 
-REFERENCE_ID="ensembl_v107_GRCh38"
+ENSEMBL_RELEASE="107"
+REFERENCE_ID="ensembl_v${ENSEMBL_RELEASE}_GRCh38"
 PIPELINE_VERSION="1.7.0"
 KALLISTO_VERSION="0.51.1"
+VEP_VERSION="107.0"
 REF_ROOT="/ref"
 WORK_ROOT="${SLURM_TMPDIR:-/srv/slurm/scratch}"
 CHECK_ONLY=0
@@ -20,13 +22,13 @@ PHASE="all"
 CORE_IMAGE_SOURCE="docker://genehetx/genehetx-rnaseq:v1.6.1"
 KALLISTO_IMAGE_SOURCE="docker://quay.io/biocontainers/kallisto:0.51.1--heb0cbe2_0"
 R_IMAGE_SOURCE="docker://rocker/r-ver:4.3.3"
-VEP_IMAGE_SOURCE="docker://quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0"
+VEP_IMAGE_SOURCE="docker://quay.io/biocontainers/ensembl-vep:107.0--pl5321h4a94de4_0"
 
-GENOME_URL="https://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
-GTF_URL="https://ftp.ensembl.org/pub/release-107/gtf/homo_sapiens/Homo_sapiens.GRCh38.107.chr.gtf.gz"
-CDNA_URL="https://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz"
-KNOWN_VCF_URL="https://ftp.ensembl.org/pub/release-105/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz"
-VEP_CACHE_URL="https://ftp.ensembl.org/pub/release-113/variation/indexed_vep_cache/homo_sapiens_vep_113_GRCh38.tar.gz"
+GENOME_URL="https://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+GTF_URL="https://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${ENSEMBL_RELEASE}.chr.gtf.gz"
+CDNA_URL="https://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz"
+KNOWN_VCF_URL="https://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz"
+VEP_CACHE_URL="https://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/variation/indexed_vep_cache/homo_sapiens_vep_${ENSEMBL_RELEASE}_GRCh38.tar.gz"
 
 usage() {
     cat <<'EOF'
@@ -129,7 +131,7 @@ case "$(uname -m)" in
         ;;
 esac
 R_SIF="${IMAGE_DIR}/r-ver-4.3.3.sif"
-VEP_SIF="${IMAGE_DIR}/ensembl-vep-113.2-amd64.sif"
+VEP_SIF="${IMAGE_DIR}/ensembl-vep-${VEP_VERSION}-amd64.sif"
 
 PICARD_JAR=""
 GATK_JAR=""
@@ -423,7 +425,7 @@ record_tool_versions() {
     if [[ "$(host_apptainer_arch)" == "amd64" ]]; then
         vep_exec vep --version >"${BUILD_DIR}/tool-versions.vep.txt" 2>&1
     else
-        printf 'VEP 113.2 (AMD64 image; runtime validation deferred)\n' \
+        printf 'VEP %s (AMD64 image; runtime validation deferred)\n' "$VEP_VERSION" \
             >"${BUILD_DIR}/tool-versions.vep.txt"
     fi
 }
@@ -431,10 +433,10 @@ record_tool_versions() {
 prepare_reference_inputs() {
     mkdir -p -- "${BUILD_DIR}/sources" "${BUILD_DIR}/VEP"
     local genome_gz="${BUILD_DIR}/sources/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
-    local gtf_gz="${BUILD_DIR}/sources/Homo_sapiens.GRCh38.107.chr.gtf.gz"
+    local gtf_gz="${BUILD_DIR}/sources/Homo_sapiens.GRCh38.${ENSEMBL_RELEASE}.chr.gtf.gz"
     local cdna_gz="${BUILD_DIR}/sources/Homo_sapiens.GRCh38.cdna.all.fa.gz"
     local known_vcf_gz="${BUILD_DIR}/sources/1000GENOMES-phase_3.vcf.gz"
-    local vep_tar="${BUILD_DIR}/sources/homo_sapiens_vep_113_GRCh38.tar.gz"
+    local vep_tar="${BUILD_DIR}/sources/homo_sapiens_vep_${ENSEMBL_RELEASE}_GRCh38.tar.gz"
 
     download_file "$GENOME_URL" "$genome_gz"
     download_file "$GTF_URL" "$gtf_gz"
@@ -454,8 +456,8 @@ prepare_reference_inputs() {
     gzip -dc "$cdna_gz" >"${BUILD_DIR}/transcriptom.fa"
     gzip -dc "$known_vcf_gz" >"${BUILD_DIR}/knowns_variants.vcf"
     tar -xzf "$vep_tar" -C "${BUILD_DIR}/VEP" --no-same-owner
-    [[ -d "${BUILD_DIR}/VEP/homo_sapiens/113_GRCh38" ]] \
-        || die "VEP cache did not contain homo_sapiens/113_GRCh38"
+    [[ -d "${BUILD_DIR}/VEP/homo_sapiens/${ENSEMBL_RELEASE}_GRCh38" ]] \
+        || die "VEP cache did not contain homo_sapiens/${ENSEMBL_RELEASE}_GRCh38"
 
     cp -p -- "${BUILD_DIR}/transcriptom.fa" "${BUILD_DIR}/cdna.fa"
 
@@ -527,7 +529,7 @@ build_gtf_artifacts() {
 
     r_exec Rscript /work/procGTF.R \
         /work/ref.GeneLvlOnly.gtf \
-        /work/refGeneID_ensembl_v107
+        "/work/refGeneID_ensembl_v${ENSEMBL_RELEASE}"
 
 }
 
@@ -560,12 +562,12 @@ validate_reference() {
         ref.fa ref.fa.fai ref.dict ref.gtf transcriptom.fa cdna.fa \
         kalliso_index kallisto_index knowns_variants.vcf knowns_variants.vcf.idx \
         ref.ExonsOnly.bed ref.GeneLvlOnly.gtf Exon_gtf_info.tab \
-        refGeneID_ensembl_v107.rds refGeneID_ensembl_v107.tsv \
+        "refGeneID_ensembl_v${ENSEMBL_RELEASE}.rds" "refGeneID_ensembl_v${ENSEMBL_RELEASE}.tsv" \
         Genome SA SAindex; do
         [[ -s "${BUILD_DIR}/${required}" ]] || die "missing reference artifact: ${required}"
     done
 
-    [[ -d "${BUILD_DIR}/VEP/homo_sapiens/113_GRCh38" ]] \
+    [[ -d "${BUILD_DIR}/VEP/homo_sapiens/${ENSEMBL_RELEASE}_GRCh38" ]] \
         || die "missing VEP cache directory"
 
     log "Validating Kallisto index"
@@ -630,6 +632,7 @@ write_manifest() {
     export MANIFEST_BUILD_DIR="$BUILD_DIR"
     export MANIFEST_STAGE_DIR="$STAGE_DIR"
     export MANIFEST_REFERENCE_ID="$REFERENCE_ID"
+    export MANIFEST_ENSEMBL_RELEASE="$ENSEMBL_RELEASE"
     export MANIFEST_CORE_IMAGE_SOURCE="$CORE_IMAGE_SOURCE"
     export MANIFEST_KALLISTO_IMAGE_SOURCE="$KALLISTO_IMAGE_SOURCE"
     export MANIFEST_R_IMAGE_SOURCE="$R_IMAGE_SOURCE"
@@ -671,10 +674,10 @@ def text(path: Path) -> str:
 
 source_paths = {
     "genome_fasta": build / "sources/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz",
-    "annotation_gtf": build / "sources/Homo_sapiens.GRCh38.107.chr.gtf.gz",
+    "annotation_gtf": build / f"sources/Homo_sapiens.GRCh38.{os.environ['MANIFEST_ENSEMBL_RELEASE']}.chr.gtf.gz",
     "transcriptome_cdna": build / "sources/Homo_sapiens.GRCh38.cdna.all.fa.gz",
     "known_variants": build / "sources/1000GENOMES-phase_3.vcf.gz",
-    "vep_cache_archive": build / "sources/homo_sapiens_vep_113_GRCh38.tar.gz",
+    "vep_cache_archive": build / f"sources/homo_sapiens_vep_{os.environ['MANIFEST_ENSEMBL_RELEASE']}_GRCh38.tar.gz",
 }
 source_urls = {
     "genome_fasta": os.environ["MANIFEST_GENOME_URL"],
@@ -740,16 +743,16 @@ manifest = {
     "genome": {
         "species": "homo_sapiens",
         "assembly": "GRCh38",
-        "ensembl_release": 107,
+        "ensembl_release": int(os.environ["MANIFEST_ENSEMBL_RELEASE"]),
     },
-    "annotation": {"ensembl_release": 107},
-    "transcriptome": {"ensembl_release": 107},
+    "annotation": {"ensembl_release": int(os.environ["MANIFEST_ENSEMBL_RELEASE"])},
+    "transcriptome": {"ensembl_release": int(os.environ["MANIFEST_ENSEMBL_RELEASE"])},
     "known_variants": {
-        "ensembl_release": 105,
+        "ensembl_release": int(os.environ["MANIFEST_ENSEMBL_RELEASE"]),
         "file": "knowns_variants.vcf",
     },
     "vep": {
-        "cache_release": 113,
+        "cache_release": int(os.environ["MANIFEST_ENSEMBL_RELEASE"]),
         "cache_path": "VEP",
         "species": "homo_sapiens",
         "assembly": "GRCh38",
@@ -792,8 +795,8 @@ assert manifest["reference_id"] == "ensembl_v107_GRCh38"
 assert manifest["genome"]["ensembl_release"] == 107
 assert manifest["annotation"]["ensembl_release"] == 107
 assert manifest["transcriptome"]["ensembl_release"] == 107
-assert manifest["known_variants"]["ensembl_release"] == 105
-assert manifest["vep"]["cache_release"] == 113
+assert manifest["known_variants"]["ensembl_release"] == 107
+assert manifest["vep"]["cache_release"] == 107
 
 for artifact in manifest["artifacts"]:
     path = stage / artifact["path"]

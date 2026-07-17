@@ -1,6 +1,6 @@
 #!/bin/bash
 ## each user can ch{
-Ensemblv="105"
+Ensemblv="107"
 
 mkdir ensembl_v${Ensemblv}_GRCh38_p13 &&\
 chmod +rwx ensembl_v${Ensemblv}_GRCh38_p13

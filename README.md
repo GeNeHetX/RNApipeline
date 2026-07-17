@@ -174,9 +174,9 @@ For a local execution, modify the local.config file and for Google Cloud executi
     * ```params.mpileup``` = true , by default, but if you don't want to execute Mpileup put false for this parameter 
     * ```params.vep``` = true , by default, but if you don't want to execute VEP put false for this parameter 
   * Reference paths :
-    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__
+    * ```params.ref= ```"/PATH/to/ensembl_v107_GRCh38_p13" -> specify the path to the directory that contains all the reference data for pipeline execution (generated using ref_build.sh in the data-preparation step)
     * But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
-    * ```params.vep_cache``` = "/PATH/to/ensembl_v105_GRCh38_p13/VEP"
+    * ```params.vep_cache``` = "/PATH/to/ensembl_v107_GRCh38_p13/VEP"
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
  * STAR 
    * ```params.alignIntronMax = ```val
