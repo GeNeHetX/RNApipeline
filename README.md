@@ -101,28 +101,34 @@ supplies the per-run `/biojobs/nextflow/NAME/work` directory. Repeating the same
 name resumes the existing run; do not create a new random run name for every
 retry.
 
-The TOD reference builder prepares the complete reference and the
-architecture-specific Kallisto containers in one Nextflow run. `nf-run` runs
-the coordinator on `ctra`; the site default submits the build task to the
-serving `pam_cpu` queue. A small local Nextflow process first places the builder
-script in shared work, so PAM/TOD workers never depend on the controller's home
-directory:
+Build the Kallisto SIFs once, before the reference. The ARM64 SIF must be built
+on PAM; the x86_64 SIF must be built on TOD (Intel and AMD are both x86_64).
+The scripts are in `containers/kallisto/` and each takes one argument: its
+destination directory. From a controller, submit them to the matching worker
+partition; do not build the ARM64 image on `ctra`.
+
+After both SIFs exist under `/ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/`,
+run the reference workflow. `nf-run` runs the coordinator on `ctra`; the
+workflow stages the builder source, prepares inputs and containers, then sends
+the independent sequence, variant, Kallisto, GTF, and STAR tasks to Slurm in
+parallel. One final task validates and publishes the complete reference:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
 nf-run rnapipeline-ref-full \
   "$HOME/rna/RNApipeline-tod/PrePostScripts/ref_build.nf" \
   --ref_root /ref \
-  --work_root /srv/slurm/scratch \
   --force
 ```
 
-This publishes Kallisto 0.51.1 under
-`/ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/arm64` and `amd64`, plus an
-architecture-selecting wrapper at `.../bin/kallisto`. The wrapper selects the
-SIF after Slurm has assigned the task, so `pam_cpu`, `pam_gpu`, and
-`rna_burst` can all use every eligible machine. `rna_burst` still requires
-burst mode to be enabled by the infrastructure.
+The reference workflow never creates or publishes SIFs. It creates the
+architecture-selecting wrapper at `.../bin/kallisto` after validating both SIFs;
+the wrapper selects the correct SIF after Slurm assigns the worker. The same
+reference can therefore be built on PAM or TOD and used on both architectures.
+
+For the normal serving setup, use `pam_cpu`. To build on TOD, use the IAC
+AMD64/burst profile and enable RNA burst mode first. Resume the same run name
+after a failed task; do not create a new name for each retry.
 
 For a normal pipeline run, choose a meaningful stable name and add the project
 config after the site defaults:
