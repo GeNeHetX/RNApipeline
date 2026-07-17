@@ -2,7 +2,7 @@ nextflow.enable.dsl=2
 
 process gatk_vc {
 	publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	//container 'genehetx/genehetx-rnaseq:v1.6.0'
+	// Container is selected by the site/project configuration.
 
 
 	input :
@@ -107,7 +107,7 @@ process gatk_vc {
 
 process SortingSam {
 	// publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -139,7 +139,7 @@ process SortingSam {
 
 process AddOrReplaceReadGroups {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -174,7 +174,7 @@ process AddOrReplaceReadGroups {
 
 process MarkDuplicates {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -204,7 +204,7 @@ process MarkDuplicates {
 
 process SplitNCigar {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -233,7 +233,7 @@ process SplitNCigar {
 
 process BaseRecalibrator {
 	publishDir "${params.outputdir}/GATK4_output/recal_data_table", mode: 'copy', pattern: "*.recal.data.table"
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -263,7 +263,7 @@ process BaseRecalibrator {
 
 process ApplyBQSR {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -294,7 +294,7 @@ process ApplyBQSR {
 
 process BedToIntervalList {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -325,7 +325,7 @@ process BedToIntervalList {
 
 process HaplotypeCaller {
 	publishDir "${params.outputdir}/GATK4_output/", mode: 'copy', pattern: "*.vcf"
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
+	container 'docker://genehetx/genehetx-rnaseq:v1.6.1'
 
 
 	input :
@@ -360,6 +360,7 @@ process HaplotypeCaller {
 }
 
 process Vep {
+	label 'amd64'
 	publishDir "${params.outputdir}/Vep_output", mode: 'copy', pattern: "*_annot.vcf.gz"
 	//container 'quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0'
 

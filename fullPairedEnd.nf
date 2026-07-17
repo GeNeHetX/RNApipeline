@@ -8,6 +8,7 @@ include {bcftools_mpileup} from './modules/mpileup.nf'
 include {KallistoPE} from './modules/kallisto.nf'
 include {buildref} from './modules/index.nf'
 include {Create_md5; Verify_md5; Check_samples; Check_process; Write_summary} from './modules/check_prepost_pipeline.nf'
+include {STAGE_WORKFLOW_RESOURCES} from './modules/workflow_resources.nf'
 
 
 // Fonction utilitaire pour formater dynamiquement la version du pipeline
@@ -158,10 +159,25 @@ workflow Analysis_SE{
 workflow {
   def date = new java.util.Date()
 
+  resource_source = channel.fromPath(params.scriptDir, checkIfExists: true)
+  STAGE_WORKFLOW_RESOURCES(resource_source)
+  check_samples_script = STAGE_WORKFLOW_RESOURCES.out.resources.map { resource_dir ->
+    resource_dir.resolve('check_nb_sample.py')
+  }
+  create_checksum_script = STAGE_WORKFLOW_RESOURCES.out.resources.map { resource_dir ->
+    resource_dir.resolve('createCheckSum.py')
+  }
+  verify_checksum_script = STAGE_WORKFLOW_RESOURCES.out.resources.map { resource_dir ->
+    resource_dir.resolve('verifyCheckSum.py')
+  }
+  check_process_script = STAGE_WORKFLOW_RESOURCES.out.resources.map { resource_dir ->
+    resource_dir.resolve('check_process_nf.py')
+  }
+
   // 1. Check_samples
   def sample_checked_csv
   if (params.check_samples != false) {
-    def check_samples_res = Check_samples(params.csvSample, params.sampleInputDir, file("${params.scriptDir}/check_nb_sample.py"))
+    def check_samples_res = Check_samples(params.csvSample, params.sampleInputDir, check_samples_script)
     sample_checked_csv = check_samples_res[0]
     def sample_status = check_samples_res[1].map{ it.text.trim() }
 
@@ -215,10 +231,10 @@ workflow {
   def md5_error_file
   if (params.check_md5 != false) {
     if(params.routine==true){
-      Create_md5( params.sampleInputDir, sample_checked_csv, file("${params.scriptDir}/createCheckSum.py"))
+      Create_md5(params.sampleInputDir, sample_checked_csv, create_checksum_script)
       md5_error_file = Create_md5.out[1]
     }else {
-      Verify_md5(params.sampleInputDir, file(params.md5), file("${params.scriptDir}/verifyCheckSum.py"))
+      Verify_md5(params.sampleInputDir, file(params.md5), verify_checksum_script)
       md5_error_file = Verify_md5.out[1]
       // 3.bis Vérifier MD5 status file
       md5_error_file
@@ -249,10 +265,10 @@ workflow {
   def process_status_ch
   if (should_check_process) {
     if (params.single_end) {
-      process_status_ch = Check_process(sample_checked_csv, Analysis_SE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))[0]
+      process_status_ch = Check_process(sample_checked_csv, Analysis_SE.out.qc_out.collect(), check_process_script)[0]
     }
     else {
-      process_status_ch = Check_process(sample_checked_csv, Analysis_PE.out.qc_out.collect(),file("${params.scriptDir}/check_process_nf.py"))[0]
+      process_status_ch = Check_process(sample_checked_csv, Analysis_PE.out.qc_out.collect(), check_process_script)[0]
     }
   }
   else {

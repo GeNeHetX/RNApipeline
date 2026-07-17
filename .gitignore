@@ -1,1 +1,4 @@
 AGENTS.md
+.nextflow/
+.nextflow.log*
+work/

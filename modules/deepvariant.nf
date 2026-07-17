@@ -2,9 +2,10 @@ nextflow.enable.dsl=2
 
 
 process Mosdepth {
+    label 'amd64'
     //publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'quay.io/biocontainers/mosdepth:0.3.1--h4dc83fb_1'
+    container 'docker://quay.io/biocontainers/mosdepth:0.3.1--h4dc83fb_1'
 
     input:
     // path("*${params.suffixbam}.bam")
@@ -39,9 +40,10 @@ process Mosdepth {
 
 
 process Bedtools {
+    label 'amd64'
     //publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'quay.io/biocontainers/bedtools:2.23.0--h5b5514e_6'
+    container 'docker://quay.io/biocontainers/bedtools:2.23.0--h5b5514e_6'
 
     input:
         file(perbasebed)
@@ -73,9 +75,10 @@ process Bedtools {
 
 
 process Deepvariant {
+    label 'amd64'
     publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'google/deepvariant:1.4.0'
+    container 'docker://google/deepvariant:1.4.0'
 
 	input :
     file(bamfile)

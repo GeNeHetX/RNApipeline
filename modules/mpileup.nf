@@ -1,9 +1,10 @@
 process bcftools_mpileup{
+	label 'amd64'
 
 	publishDir "${params.outputdir}/Mpileup_output/mpileup_file", mode: 'copy', pattern: '*.mpileup.gz'
 	publishDir "${params.outputdir}/Mpileup_output/bcftools_file", mode: 'copy',  pattern: '*.bcftools.vcf.gz'
 	
-	container 'quay.io/biocontainers/bcftools:1.21--h3a4d415_1'
+	container 'docker://quay.io/biocontainers/bcftools:1.21--h3a4d415_1'
 	
 	input: 
 	tuple val(sample), path(bam), path(bai)

@@ -107,7 +107,7 @@ done
 CURRENT_JOB="${SLURM_JOB_ID:-manual-$$}"
 FINAL_DIR="${REF_ROOT%/}/${REFERENCE_ID}"
 BUILD_DIR="${WORK_ROOT%/}/rnapipeline-ref-${REFERENCE_ID}"
-LOCK_DIR="${BUILD_DIR}.lock"
+LOCK_FILE="${BUILD_DIR}.flock"
 STAGE_DIR="${REF_ROOT%/}/.staging/${REFERENCE_ID}.${CURRENT_JOB}"
 IMAGE_DIR="${BUILD_DIR}/images"
 KALLISTO_TOOL_ROOT="${REF_ROOT%/}/tools/rnapipeline/v${PIPELINE_VERSION}/kallisto/${KALLISTO_VERSION}"
@@ -126,10 +126,12 @@ PICARD_JAR=""
 GATK_JAR=""
 APPTAINER_ARCH=""
 LOCK_HELD=0
+LOCK_FD=""
 
 release_build_lock() {
-    if ((LOCK_HELD == 1)); then
-        rm -rf -- "$LOCK_DIR"
+    if ((LOCK_HELD == 1)) && [[ -n "$LOCK_FD" ]]; then
+        flock -u "$LOCK_FD" 2>/dev/null || true
+        exec {LOCK_FD}>&-
         LOCK_HELD=0
     fi
 }
@@ -186,15 +188,16 @@ check_source_urls() {
 }
 
 acquire_build_lock() {
-    if ! mkdir -- "$LOCK_DIR" 2>/dev/null; then
-        local owner="unknown"
-        if [[ -s "${LOCK_DIR}/job_id" ]]; then
-            owner="$(<"${LOCK_DIR}/job_id")"
-        fi
+    exec {LOCK_FD}>>"$LOCK_FILE"
+    chmod 0666 "$LOCK_FILE"
+    if ! flock -n "$LOCK_FD"; then
+        local owner
+        owner="$(<"$LOCK_FILE")"
+        owner="${owner:-unknown}"
         die "scratch build is already locked by Slurm job ${owner}: ${BUILD_DIR}"
     fi
     LOCK_HELD=1
-    printf '%s\n' "$CURRENT_JOB" >"${LOCK_DIR}/job_id"
+    printf '%s\n' "$CURRENT_JOB" >"$LOCK_FILE"
 }
 
 host_apptainer_arch() {
@@ -209,6 +212,19 @@ host_apptainer_arch() {
             die "unsupported host architecture: $(uname -m)"
             ;;
     esac
+}
+
+check_apptainer_fakeroot() {
+    local uid mapping
+    uid="$(id -u)"
+    for mapping in /etc/subuid /etc/subgid; do
+        [[ -r "$mapping" ]] \
+            || die "Apptainer fakeroot mapping file is unreadable: $mapping (rerun IAC PR-040)"
+        awk -F: -v user="${USER:-}" -v uid="$uid" \
+            '$1 == user || $1 == uid { if ($3 >= 65536) found=1 } END { exit(found ? 0 : 1) }' \
+            "$mapping" \
+            || die "no valid Apptainer fakeroot mapping for ${USER:-uid-$uid} in $mapping (rerun IAC PR-040)"
+    done
 }
 
 image_matches_arch() {
@@ -957,6 +973,7 @@ main() {
     require_cmd awk
     require_cmd curl
     require_cmd find
+    require_cmd flock
     require_cmd gzip
     require_cmd python3
     require_cmd sha256sum
@@ -973,6 +990,10 @@ main() {
             die "APPTAINER_PULL_ARCH must be amd64 or arm64 (got: $APPTAINER_ARCH)"
             ;;
     esac
+
+    if [[ "$(host_apptainer_arch)" == "arm64" ]]; then
+        check_apptainer_fakeroot
+    fi
 
     check_ref_mount
     if ((KALLISTO_ONLY == 1)); then

@@ -104,7 +104,9 @@ retry.
 The TOD reference builder prepares the complete reference and the
 architecture-specific Kallisto containers in one Nextflow run. `nf-run` runs
 the coordinator on `ctra`; the site default submits the build task to the
-serving `pam_cpu` queue:
+serving `pam_cpu` queue. A small local Nextflow process first places the builder
+script in shared work, so PAM/TOD workers never depend on the controller's home
+directory:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
@@ -122,20 +124,23 @@ SIF after Slurm has assigned the task, so `pam_cpu`, `pam_gpu`, and
 `rna_burst` can all use every eligible machine. `rna_burst` still requires
 burst mode to be enabled by the infrastructure.
 
-For a normal pipeline run, add the project config after the site defaults:
+For a normal pipeline run, choose a meaningful stable name and add the project
+config after the site defaults:
 
 ```bash
-nf-run lung-test "$HOME/rna/RNApipeline-tod/fullPairedEnd.nf" \
+nf-run RUN-NAME "$HOME/rna/RNApipeline-tod/fullPairedEnd.nf" \
   -c "$HOME/rna/RNApipeline-tod/configExamples/TOD_infra.config"
 ```
 
-This publishes to `s3://process/rnapipeline/lung-test`. Add
+This publishes to `s3://process/rnapipeline/RUN-NAME`. Add
 `--outputdir results` when durable output should stay in the run's local
 `results/` directory instead.
 
 Use `-profile burst` only while the infrastructure is in RNA-seq burst mode.
-If optional AMD64-only tools such as VEP are enabled, use `-profile amd64` so
-all tasks are routed to TOD workers instead of PAM.
+If optional AMD64-only tools such as VEP, DeepVariant, or the BioContainers
+bcftools step are enabled, use burst mode. Their `amd64` process labels route
+those tasks to TOD while compatible tasks may still use PAM. `-profile amd64`
+remains available when the entire run must stay on TOD.
 
 The build validates the images it executes on ARM64 and publishes the
 architecture-independent reference plus both Kallisto SIF variants. The
