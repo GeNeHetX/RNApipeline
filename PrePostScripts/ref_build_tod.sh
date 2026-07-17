@@ -490,12 +490,14 @@ resolve_core_jars() {
 build_sequence_indexes() {
     resolve_core_jars
     core_exec samtools faidx /work/ref.fa
+    rm -f -- "${BUILD_DIR}/ref.dict"
     core_exec java -jar "$PICARD_JAR" CreateSequenceDictionary \
         R=/work/ref.fa O=/work/ref.dict
 }
 
 build_variant_index() {
     resolve_core_jars
+    rm -f -- "${BUILD_DIR}/knowns_variants.vcf.idx"
     core_exec java -jar "$GATK_JAR" IndexFeatureFile \
         -I /work/knowns_variants.vcf
 }
