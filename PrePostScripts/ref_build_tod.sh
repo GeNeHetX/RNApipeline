@@ -240,6 +240,12 @@ image_matches_arch() {
     esac
 }
 
+sif_structure_valid() {
+    # `apptainer inspect` may try to inspect executable metadata and reject a
+    # valid foreign-architecture image. The SIF listing is architecture-neutral.
+    "$APPTAINER_BIN" sif list "$1" >/dev/null 2>&1
+}
+
 ensure_image() {
     local target="$1"
     local source="$2"
@@ -267,7 +273,7 @@ pull_arch_image() {
     local source="$2"
     local arch="$3"
 
-    if [[ -s "$target" ]] && "$APPTAINER_BIN" inspect "$target" >/dev/null 2>&1; then
+    if [[ -s "$target" ]] && sif_structure_valid "$target"; then
         log "Using cached ${arch} image: $target"
         return
     fi
@@ -281,7 +287,7 @@ pull_arch_image() {
     mkdir -p -- "$(dirname "$target")"
     "$APPTAINER_BIN" pull --arch "$arch" "$target" "$source"
     [[ -s "$target" ]] || die "Apptainer pull did not produce: $target"
-    "$APPTAINER_BIN" inspect "$target" >/dev/null \
+    sif_structure_valid "$target" \
         || die "Apptainer produced an invalid SIF: $target"
 }
 
@@ -290,9 +296,9 @@ validate_kallisto_sifs() {
         || die "missing ARM64 Kallisto SIF: $KALLISTO_ARM_SIF_PATH"
     [[ -s "$KALLISTO_AMD64_SIF_PATH" ]] \
         || die "missing x86_64 Kallisto SIF: $KALLISTO_AMD64_SIF_PATH"
-    "$APPTAINER_BIN" inspect "$KALLISTO_ARM_SIF_PATH" >/dev/null \
+    sif_structure_valid "$KALLISTO_ARM_SIF_PATH" \
         || die "ARM64 Kallisto SIF is invalid: $KALLISTO_ARM_SIF_PATH"
-    "$APPTAINER_BIN" inspect "$KALLISTO_AMD64_SIF_PATH" >/dev/null \
+    sif_structure_valid "$KALLISTO_AMD64_SIF_PATH" \
         || die "x86_64 Kallisto SIF is invalid: $KALLISTO_AMD64_SIF_PATH"
     image_matches_arch "$KALLISTO_SIF" \
         || die "Kallisto SIF does not match this worker architecture: $KALLISTO_SIF"
