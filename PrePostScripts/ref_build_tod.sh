@@ -506,9 +506,8 @@ build_kallisto_index() {
     kallisto_exec kallisto index \
         -i /work/kalliso_index /work/transcriptom.fa
 
-    if ! ln -- "${BUILD_DIR}/kalliso_index" "${BUILD_DIR}/kallisto_index" 2>/dev/null; then
-        cp -p -- "${BUILD_DIR}/kalliso_index" "${BUILD_DIR}/kallisto_index"
-    fi
+    rm -f -- "${BUILD_DIR}/kallisto_index"
+    ln -- "${BUILD_DIR}/kalliso_index" "${BUILD_DIR}/kallisto_index"
 
 }
 
