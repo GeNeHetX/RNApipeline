@@ -228,7 +228,7 @@ host_apptainer_arch() {
 image_matches_arch() {
     local image="$1"
     local image_machine
-    image_machine="$($APPTAINER_BIN exec "$image" uname -m 2>/dev/null)" || return 1
+    image_machine="$($APPTAINER_BIN exec --no-home "$image" uname -m 2>/dev/null)" || return 1
 
     case "${APPTAINER_ARCH}:${image_machine}" in
         amd64:x86_64|arm64:aarch64|arm64:arm64)
@@ -295,8 +295,11 @@ validate_kallisto_sifs() {
     image_matches_arch "$KALLISTO_SIF" \
         || die "Kallisto SIF does not match this worker architecture: $KALLISTO_SIF"
 
+    # Check-only runs before BUILD_DIR exists, so do not use kallisto_exec,
+    # which binds BUILD_DIR as /work for normal reference-building commands.
     local version
-    version="$(kallisto_exec kallisto version 2>&1)"
+    version="$($APPTAINER_BIN exec --no-home "$KALLISTO_SIF" kallisto version 2>&1)" \
+        || die "could not execute Kallisto SIF: $KALLISTO_SIF ($version)"
     [[ "$version" == *"${KALLISTO_VERSION}"* ]] \
         || die "Kallisto version mismatch: $version"
     log "Validated ARM64 and x86_64 Kallisto ${KALLISTO_VERSION} SIFs"
