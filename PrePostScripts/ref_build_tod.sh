@@ -324,7 +324,10 @@ esac
 APPTAINER_BIN="\${APPTAINER_BIN:-apptainer}"
 command -v "\$APPTAINER_BIN" >/dev/null 2>&1 || { echo "Apptainer is required" >&2; exit 1; }
 [[ -s "\$IMAGE" ]] || { echo "Missing Kallisto SIF: \$IMAGE" >&2; exit 1; }
-exec "\$APPTAINER_BIN" exec --no-home "\$IMAGE" kallisto "\$@"
+exec "\$APPTAINER_BIN" exec --no-home \
+    --bind "\$PWD:\$PWD" \
+    --bind /ref:/ref \
+    "\$IMAGE" kallisto "\$@"
 EOF
     chmod 0755 "$wrapper"
 }
