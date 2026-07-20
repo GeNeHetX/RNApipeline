@@ -4,6 +4,7 @@ params.ref_root = '/ref'
 params.force = false
 params.check_only = false
 params.builder = "${projectDir}/ref_build_tod.sh"
+params.kallisto_wrapper = "${projectDir}/../containers/kallisto/kallisto-wrapper.sh"
 params.stage_root = null
 
 process STAGE_REFERENCE_BUILDER {
@@ -69,6 +70,28 @@ process PREPARE_REFERENCE_IMAGES {
         --ref-root '${params.ref_root}' \\
         --work-root '${stage_root}'
     touch reference-images.ready
+    """
+}
+
+process PUBLISH_KALLISTO_WRAPPER {
+    tag 'RNApipeline Kallisto wrapper'
+    executor 'local'
+    scratch false
+
+    input:
+    path wrapper_source, name: 'kallisto-wrapper.sh'
+    path images_ready
+    val ref_root
+
+    output:
+    path 'kallisto-wrapper.ready', emit: ready
+
+    script:
+    """
+    install -d -m 0775 '${ref_root}/tools/rnapipeline/v1.7.0/kallisto/0.51.1/bin'
+    install -m 0755 kallisto-wrapper.sh \
+        '${ref_root}/tools/rnapipeline/v1.7.0/kallisto/0.51.1/bin/kallisto'
+    touch kallisto-wrapper.ready
     """
 }
 
@@ -269,6 +292,12 @@ workflow {
     } else {
         inputs = PREPARE_REFERENCE_INPUTS(staged, stage_root)
         images = PREPARE_REFERENCE_IMAGES(staged, stage_root)
+        wrapper_source = channel.fromPath(
+            params.kallisto_wrapper, checkIfExists: true
+        )
+        PUBLISH_KALLISTO_WRAPPER(
+            wrapper_source, images, params.ref_root
+        )
 
         sequence = BUILD_SEQUENCE_INDEXES(
             staged, inputs, images, stage_root

@@ -30,4 +30,7 @@ Use `pam_cpu` for ARM64. Use the enabled x86/TOD burst partition for x86_64;
 the burst partition must be enabled before submission.
 
 After both files exist, run `PrePostScripts/ref_build.nf`. It validates and
-uses the matching SIF but never creates or publishes SIFs.
+uses the matching SIF but never creates or publishes SIFs. The reference
+workflow publishes the architecture-selecting `kallisto` launcher separately
+after image preparation; this keeps wrapper fixes resumable without rebuilding
+the reference inputs and indexes.
