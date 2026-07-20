@@ -327,6 +327,7 @@ command -v "\$APPTAINER_BIN" >/dev/null 2>&1 || { echo "Apptainer is required" >
 exec "\$APPTAINER_BIN" exec --no-home \
     --bind "\$PWD:\$PWD" \
     --bind /ref:/ref \
+    --bind /biojobs:/biojobs \
     "\$IMAGE" kallisto "\$@"
 EOF
     chmod 0755 "$wrapper"
