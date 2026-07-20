@@ -142,6 +142,41 @@ This publishes to `s3://process/rnapipeline/RUN-NAME`. Add
 `--outputdir results` when durable output should stay in the run's local
 `results/` directory instead.
 
+### TOD/PAM S3 test run
+
+Use one stable `nf-run` name per analysis. The run directory is
+`/biojobs/nextflow/RUN-NAME`; its `metadata/samples.csv` is the input sheet,
+`work/` is resumable Nextflow state, and `logs/` contains the engine log and
+reports. The FASTQs may remain in S3; do not copy them to `/biojobs`.
+
+For paired-end files named `SAMPLE_R1.fastq.gz` and `SAMPLE_R2.fastq.gz`, use:
+
+```csv
+ID_Sample,Project,suffix1,suffix2
+BCPEVP0625_R001,rna-prelimtest,_R1,_R2
+BCPRNA0625_R038,rna-prelimtest,_R1,_R2
+BCPRNA0625_R056,rna-prelimtest,_R1,_R2
+```
+
+Then launch from a controller:
+
+```bash
+RUN_NAME=rna-prelimtest
+RUN_DIR=/biojobs/nextflow/$RUN_NAME
+mkdir -p "$RUN_DIR/metadata"
+# Create $RUN_DIR/metadata/samples.csv with the sheet above.
+
+nf-run "$RUN_NAME" /path/to/RNApipeline/fullPairedEnd.nf \
+  -c /path/to/RNApipeline/configExamples/TOD_infra.config \
+  --sampleInputDir s3://sandbox/Fastq_tests \
+  --csvSample "$RUN_DIR/metadata/samples.csv"
+```
+
+The default site profile submits to `pam_cpu`. Add `-profile burst` only when
+RNA-seq burst mode is active. The pipeline publishes durable results to
+`s3://process/rnapipeline/rna-prelimtest`; the same run's logs, metadata, and
+resumable work remain under `/biojobs/nextflow/rna-prelimtest`.
+
 Use `-profile burst` only while the infrastructure is in RNA-seq burst mode.
 If optional AMD64-only tools such as VEP, DeepVariant, or the BioContainers
 bcftools step are enabled, use burst mode. Their `amd64` process labels route
