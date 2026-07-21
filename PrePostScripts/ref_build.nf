@@ -3,20 +3,18 @@ nextflow.enable.dsl=2
 /*
  * Infrastructure-neutral Ensembl reference build.
  *
- * Site/project configuration supplies ref_root, reference_stage, containers,
- * container bind options, executor, queue, and resources. Each process
+ * Site/project configuration supplies reference_root, containers, executor,
+ * queue, and resources. Each process
  * publishes its own completed artifacts to the shared staging directory.
  * Finalization validates them and performs only a same-filesystem rename.
  */
 
-params.ref_root = null
-params.reference_stage = null
+params.reference_root = '/ref'
 params.reference_id = 'ensembl_v107_GRCh38'
 params.ensembl_release = 107
 params.reference_build_owner = System.getenv('NF_RUN_NAME') ?: 'manual'
 params.force = false
 params.check_only = false
-params.reference_container_options = ''
 params.reference_kallisto_before_script = ''
 params.genome_url = null
 params.gtf_url = null
@@ -85,7 +83,6 @@ process PREPARE_REFERENCE_INPUTS {
     tag 'reference inputs'
     label 'reference'
     container params.reference_containers.utility
-    containerOptions params.reference_container_options
     cpus 4
     memory '16 GB'
     time '12h'
@@ -148,7 +145,6 @@ process BUILD_SEQUENCE_INDEXES {
     tag 'sequence indexes'
     label 'reference'
     container params.reference_containers.core
-    containerOptions params.reference_container_options
     cpus 16
     memory '32 GB'
     time '8h'
@@ -179,7 +175,6 @@ process BUILD_VARIANT_INDEX {
     tag 'variant index'
     label 'reference'
     container params.reference_containers.core
-    containerOptions params.reference_container_options
     cpus 8
     memory '16 GB'
     time '4h'
@@ -208,7 +203,6 @@ process BUILD_KALLISTO_INDEX {
     tag 'Kallisto index'
     label 'reference'
     container params.reference_containers.kallisto
-    containerOptions params.reference_container_options
     beforeScript params.reference_kallisto_before_script
     cpus 16
     memory '32 GB'
@@ -240,7 +234,6 @@ process BUILD_GTF_ARTIFACTS {
     tag 'GTF artifacts'
     label 'reference'
     container params.reference_containers.r
-    containerOptions params.reference_container_options
     cpus 8
     memory '16 GB'
     time '4h'
@@ -297,7 +290,6 @@ process BUILD_STAR_INDEX {
     tag 'STAR index'
     label 'reference'
     container params.reference_containers.core
-    containerOptions params.reference_container_options
     cpus 16
     memory '64 GB'
     time '24h'
@@ -491,11 +483,9 @@ PY
 }
 
 workflow {
-    if (!params.ref_root) {
-        error "Set params.ref_root in site/project configuration or pass --ref_root."
-    }
-    final_root = params.ref_root + '/' + params.reference_id
-    stage_root = params.reference_stage ?: (params.ref_root + '/.staging/' + params.reference_id + '.active')
+    def run_name = System.getenv('NF_RUN_NAME') ?: 'manual'
+    final_root = params.reference_root + '/' + params.reference_id
+    stage_root = params.reference_root + '/.staging/' + run_name + '.active'
 
     if (params.check_only) {
         CHECK_REFERENCE(final_root)

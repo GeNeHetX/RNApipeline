@@ -88,14 +88,16 @@ For this step, you will need:
      * Transcriptome file: (Cdna) you can retrieve it from the Ensembl Database. 
      * Make sure that the FASTA and the GTF belong to the same genome version !!
      * Get a Known-variants file: You can retrieve it from Ensembl Database. 
-This step requires 32Go RAM, so it is advised to generate once for the same genome, however you can generate it using the pipeline also by changing parameter in the config files (nextflow.config and nextflowGCP.config)=> explained in the __setting up__ setp.
+This step requires 32Go RAM, so it is advised to generate it once for a given
+genome. The standard project parameters are in `nextflow.config`; other
+execution environments can use the matching file under `configExamples/`.
 
 ### TOD/PAM infrastructure
 
 On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount. IAC
-`/etc/nextflow/site.config` owns Slurm, scratch, Apptainer, caches, and queue
-profiles. `TOD_infra.config` supplies the reference root, shared staging path,
-containers, and bind options. `nf-run NAME` supplies the per-run
+`/etc/nextflow/site.config` owns Slurm, scratch, Apptainer, caches, and the
+explicit queue profiles. The repository `nextflow.config` supplies the standard
+reference root, containers, and pipeline parameters. `nf-run NAME` supplies the per-run
 `/biojobs/nextflow/NAME/work` directory. Repeating the same name resumes the
 existing run; do not create a new random run name for every retry.
 
@@ -122,28 +124,28 @@ directory into place:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
-nf-run rnapipeline-ref-full \
-  "$HOME/rna/RNApipeline-tod/PrePostScripts/ref_build.nf" \
-  -c "$HOME/rna/RNApipeline-tod/configExamples/TOD_infra.config" \
-  --ref_root /ref
+nf-run rnapipeline-ref-v107-test \
+  /biojobs/pipelines/RNApipeline/PrePostScripts/ref_build.nf \
+  -profile pam_cpu \
+  --reference_id ensembl_v107_GRCh38_test
 ```
 
 The reference workflow never creates SIFs and never invokes Apptainer directly
 from a shell helper. The Kallisto launcher selects the SIF after Slurm assigns
-the worker; Nextflow/TOD config supplies the `/ref` and `/biojobs` bindings.
+the worker; the site Nextflow config supplies the `/ref` binding.
 The same reference can therefore be built on PAM or TOD and used on both
 architectures.
 
-For the normal serving setup, use `pam_cpu`. To build on TOD, use the IAC
-AMD64/burst profile and enable RNA burst mode first. Resume the same run name
+Use `-profile pam_cpu` for PAM CPU work, `-profile pam_gpu` for PAM GPU work,
+or `-profile burst` after enabling infrastructure mode `burst`. Resume the same run name
 after a failed task; do not create a new name for each retry.
 
 For a normal pipeline run, choose a meaningful stable name and add the project
 config after the site defaults:
 
 ```bash
-nf-run RUN-NAME "$HOME/rna/RNApipeline-tod/fullPairedEnd.nf" \
-  -c "$HOME/rna/RNApipeline-tod/configExamples/TOD_infra.config"
+nf-run RUN-NAME /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
+  -profile pam_cpu
 ```
 
 This publishes to `s3://process/rnapipeline/RUN-NAME`. Add
@@ -174,22 +176,22 @@ RUN_DIR=/biojobs/nextflow/$RUN_NAME
 mkdir -p "$RUN_DIR/metadata"
 # Create $RUN_DIR/metadata/samples.csv with the sheet above.
 
-nf-run "$RUN_NAME" /path/to/RNApipeline/fullPairedEnd.nf \
-  -c /path/to/RNApipeline/configExamples/TOD_infra.config \
+nf-run "$RUN_NAME" /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
+  -profile pam_cpu \
   --sampleInputDir s3://sandbox/Fastq_tests \
   --csvSample "$RUN_DIR/metadata/samples.csv"
 ```
 
-The default site profile submits to `pam_cpu`. Add `-profile burst` only when
-RNA-seq burst mode is active. The pipeline publishes durable results to
+The profile is explicit. Add `-profile burst` only when infrastructure mode
+`burst` is active. The pipeline publishes durable results to
 `s3://process/rnapipeline/rna-prelimtest`; the same run's logs, metadata, and
 resumable work remain under `/biojobs/nextflow/rna-prelimtest`.
 
-Use `-profile burst` only while the infrastructure is in RNA-seq burst mode.
+Use `-profile burst` only while the infrastructure is in `burst` mode.
 If optional AMD64-only tools such as VEP, DeepVariant, or the BioContainers
 bcftools step are enabled, use burst mode. Their `amd64` process labels route
-those tasks to TOD while compatible tasks may still use PAM. `-profile amd64`
-remains available when the entire run must stay on TOD.
+those tasks to TOD while compatible tasks may still use PAM. Architecture is
+selected by process labels and containers, not by a user-facing profile.
 
 The build uses the configured Kallisto runtime for the worker architecture and
 requires all Ensembl inputs to use the same release. `--force` is only for an
@@ -294,7 +296,7 @@ To execute the pipeline, please follow these instructions:
   2. ```Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)``` (activation of the json key on youre work_directory)
   3. Copy all your fastq files and the directory generated by the reference workflow using the following command: gsutil cp -r dir1/dir2 gs://my-bucket.
   
-   d) Modify the machines' capacities on the netflowGCP.config (CPUs, RAM, Disk, container) (if you want) 
+   d) Modify the machines' capacities in the selected Google Cloud config (CPUs, RAM, disk, container) (if you want)
   ``` withName: doSTAR{ \
         cpus = 16 \
         container = 'genehetx/genehetx-rnaseq:latest' \
@@ -313,7 +315,7 @@ To execute the pipeline, please follow these instructions:
 ```
  5. Pipeline Execution :
  * a) Single-end data : \
- ```nextflow run single_end.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```
+ ```nextflow run simpleSingleEnd.nf -c ../configExamples/GoogleCloud.config  -w /path/to/your/workdir  -with-report [file name]```
  You can specify the name of your pipeline report [file name]
  * b) Paired end data: \
- ```nextflow run paired_end_pipe.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```
+ ```nextflow run fullPairedEnd.nf -c ../configExamples/GoogleCloud.config  -w /path/to/your/workdir  -with-report [file name]```
