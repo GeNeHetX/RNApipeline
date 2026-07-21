@@ -10,17 +10,12 @@ nextflow.enable.dsl=2
  */
 
 params.reference_root = '/ref'
-params.reference_id = 'ensembl_v107_GRCh38'
 params.ensembl_release = 107
+params.reference_id = null
 params.reference_build_owner = System.getenv('NF_RUN_NAME') ?: 'manual'
 params.force = false
 params.check_only = false
 params.reference_kallisto_before_script = ''
-params.genome_url = null
-params.gtf_url = null
-params.cdna_url = null
-params.known_vcf_url = null
-params.vep_cache_url = null
 params.reference_picard_jar = '/data/picard.jar'
 params.reference_gatk_jar = '/data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar'
 params.reference_containers = [
@@ -30,12 +25,12 @@ params.reference_containers = [
     kallisto: 'docker://quay.io/biocontainers/kallisto:0.51.1--heb0cbe2_0'
 ]
 
-def release = params.ensembl_release.toString()
-def genome_url = params.genome_url ?: ('https://ftp.ensembl.org/pub/release-' + release + '/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz')
-def gtf_url = params.gtf_url ?: ('https://ftp.ensembl.org/pub/release-' + release + '/gtf/homo_sapiens/Homo_sapiens.GRCh38.' + release + '.chr.gtf.gz')
-def cdna_url = params.cdna_url ?: ('https://ftp.ensembl.org/pub/release-' + release + '/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz')
-def known_vcf_url = params.known_vcf_url ?: ('https://ftp.ensembl.org/pub/release-' + release + '/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz')
-def vep_cache_url = params.vep_cache_url ?: ('https://ftp.ensembl.org/pub/release-' + release + '/variation/indexed_vep_cache/homo_sapiens_vep_' + release + '_GRCh38.tar.gz')
+params.reference_release = params.ensembl_release.toString()
+params.genome_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz'
+params.gtf_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/gtf/homo_sapiens/Homo_sapiens.GRCh38.' + params.reference_release + '.chr.gtf.gz'
+params.cdna_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz'
+params.known_vcf_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz'
+params.vep_cache_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/variation/indexed_vep_cache/homo_sapiens_vep_' + params.reference_release + '_GRCh38.tar.gz'
 
 process INIT_REFERENCE_STAGE {
     tag 'reference stage'
@@ -119,19 +114,19 @@ process PREPARE_REFERENCE_INPUTS {
             mv -- "\$partial" "\$destination"
         fi
     }
-    fetch '${genome_url}' sources/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-    fetch '${gtf_url}' sources/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
-    fetch '${cdna_url}' sources/Homo_sapiens.GRCh38.cdna.all.fa.gz
-    fetch '${known_vcf_url}' sources/1000GENOMES-phase_3.vcf.gz
-    fetch '${vep_cache_url}' sources/homo_sapiens_vep_${release}_GRCh38.tar.gz
+    fetch '${params.genome_url}' sources/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+    fetch '${params.gtf_url}' sources/Homo_sapiens.GRCh38.${params.reference_release}.chr.gtf.gz
+    fetch '${params.cdna_url}' sources/Homo_sapiens.GRCh38.cdna.all.fa.gz
+    fetch '${params.known_vcf_url}' sources/1000GENOMES-phase_3.vcf.gz
+    fetch '${params.vep_cache_url}' sources/homo_sapiens_vep_${params.reference_release}_GRCh38.tar.gz
     gzip -t sources/*.gz
-    tar -tzf sources/homo_sapiens_vep_${release}_GRCh38.tar.gz >/dev/null
+    tar -tzf sources/homo_sapiens_vep_${params.reference_release}_GRCh38.tar.gz >/dev/null
     gzip -dc sources/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz > ref.fa
-    gzip -dc sources/Homo_sapiens.GRCh38.${release}.chr.gtf.gz > ref.gtf
+    gzip -dc sources/Homo_sapiens.GRCh38.${params.reference_release}.chr.gtf.gz > ref.gtf
     gzip -dc sources/Homo_sapiens.GRCh38.cdna.all.fa.gz > transcriptom.fa
     gzip -dc sources/1000GENOMES-phase_3.vcf.gz > knowns_variants.vcf
-    tar -xzf sources/homo_sapiens_vep_${release}_GRCh38.tar.gz -C VEP --no-same-owner
-    test -d VEP/homo_sapiens/${release}_GRCh38
+    tar -xzf sources/homo_sapiens_vep_${params.reference_release}_GRCh38.tar.gz -C VEP --no-same-owner
+    test -d VEP/homo_sapiens/${params.reference_release}_GRCh38
     cp -f transcriptom.fa cdna.fa
     mkdir -p '${stage_root}/sources' '${stage_root}/VEP'
     fi
@@ -280,7 +275,7 @@ process BUILD_GTF_ARTIFACTS {
     saveRDS(geneTab,file=paste0(args[2],".rds"))
     write.table(geneTab,file=paste0(args[2],".tsv"),quote=F,sep="\\t")
     R_SCRIPT
-    Rscript gtf/procGTF.R gtf/ref.GeneLvlOnly.gtf gtf/refGeneID_ensembl_v${release}
+    Rscript gtf/procGTF.R gtf/ref.GeneLvlOnly.gtf gtf/refGeneID_ensembl_v${params.reference_release}
     cp -a gtf/. '${stage_root}/'
     touch '${stage_root}/.gtf-artifacts.complete' gtf-artifacts.ready
     """
@@ -372,7 +367,7 @@ process FINALIZE_REFERENCE {
         name="\$(basename "\$file")"
         [[ -s '${stage_root}/'\$name ]] || cp -f "\$file" '${stage_root}/'\$name
     done
-    if [[ ! -d '${stage_root}/VEP/homo_sapiens/${release}_GRCh38' ]]; then
+    if [[ ! -d '${stage_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38' ]]; then
         rm -rf '${stage_root}/VEP'
         cp -a vep '${stage_root}/VEP'
     fi
@@ -380,7 +375,7 @@ process FINALIZE_REFERENCE {
       ref.fa ref.fa.fai ref.dict ref.gtf transcriptom.fa cdna.fa
       knowns_variants.vcf knowns_variants.vcf.idx kalliso_index kallisto_index
       ref.GeneLvlOnly.gtf ref.ExonsOnly.bed Exon_gtf_info.tab
-      refGeneID_ensembl_v${release}.rds refGeneID_ensembl_v${release}.tsv
+      refGeneID_ensembl_v${params.reference_release}.rds refGeneID_ensembl_v${params.reference_release}.tsv
       Genome SA SAindex chrLength.txt chrName.txt chrNameLength.txt chrStart.txt
       genomeParameters.txt sjdbInfo.txt sjdbList.fromGTF.out.tab sjdbList.out.tab
       Log.out exonGeTrInfo.tab exonInfo.tab geneInfo.tab transcriptInfo.tab
@@ -391,7 +386,7 @@ process FINALIZE_REFERENCE {
             exit 1
         }
     done
-    test -d '${stage_root}/VEP/homo_sapiens/${release}_GRCh38'
+    test -d '${stage_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38'
 
     if [[ -e '${final_root}/reference_manifest.json' && '${force}' != 'true' ]]; then
         echo "Reference already finalized: ${final_root}"
@@ -408,19 +403,19 @@ required = [
     "cdna.fa", "knowns_variants.vcf", "knowns_variants.vcf.idx",
     "kalliso_index", "kallisto_index", "ref.GeneLvlOnly.gtf",
     "ref.ExonsOnly.bed", "Exon_gtf_info.tab",
-    "refGeneID_ensembl_v${release}.rds", "refGeneID_ensembl_v${release}.tsv",
+    "refGeneID_ensembl_v${params.reference_release}.rds", "refGeneID_ensembl_v${params.reference_release}.tsv",
     "Genome", "SA", "SAindex",
 ]
 manifest = {
     "manifest_schema_version": 2,
-    "reference_id": "${params.reference_id}",
+    "reference_id": "${params.reference_id ?: "ensembl_v${params.reference_release}_GRCh38"}",
     "species": "homo_sapiens",
     "assembly": "GRCh38",
-    "ensembl_release": ${release},
+    "ensembl_release": ${params.reference_release},
     "source_urls": {
-        "genome": "${genome_url}", "gtf": "${gtf_url}",
-        "cdna": "${cdna_url}", "known_vcf": "${known_vcf_url}",
-        "vep_cache": "${vep_cache_url}",
+        "genome": "${params.genome_url}", "gtf": "${params.gtf_url}",
+        "cdna": "${params.cdna_url}", "known_vcf": "${params.known_vcf_url}",
+        "vep_cache": "${params.vep_cache_url}",
     },
     "files": [{"path": n, "size_bytes": (stage / n).stat().st_size}
               for n in required],
@@ -472,22 +467,23 @@ import json, sys
 from pathlib import Path
 manifest = json.loads(Path(sys.argv[1]).read_text())
 assert manifest.get("complete") is True
-assert manifest.get("ensembl_release") == ${release}
+assert manifest.get("ensembl_release") == ${params.reference_release}
 for item in manifest["files"]:
     path = Path(sys.argv[1]).parent / item["path"]
     assert path.is_file() and path.stat().st_size >= item["size_bytes"], path
 PY
-    test -d '${final_root}/VEP/homo_sapiens/${release}_GRCh38'
+    test -d '${final_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38'
     touch reference-preflight.ready
     """
 }
 
 workflow {
     def run_name = System.getenv('NF_RUN_NAME') ?: 'manual'
-    final_root = params.reference_root + '/' + params.reference_id
+    final_root = params.reference_root + '/' + (params.reference_id ?: "ensembl_v${params.ensembl_release}_GRCh38")
     stage_root = params.reference_root + '/.staging/' + run_name + '.active'
+    def final_manifest = new File(params.reference_root + '/' + (params.reference_id ?: "ensembl_v${params.ensembl_release}_GRCh38"), 'reference_manifest.json')
 
-    if (params.check_only) {
+    if (params.check_only || (!params.force && final_manifest.isFile())) {
         CHECK_REFERENCE(final_root)
     } else {
         stage = INIT_REFERENCE_STAGE(stage_root, final_root, params.force, params.reference_build_owner)

@@ -66,11 +66,12 @@ workflow Analysis_PE{
       sample_csv // pas utilisé
       fastqDir // pas utilisé
       md5_error_file // sert à attendre les md5
+      reference_path
 
 
     main:
       def featureCountP = " -p "  // paired end
-      if(params.ref=="no_ref") {
+      if(reference_path=="no_ref") {
         buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
         fastqc(samples_ch)
         doSTAR(buildref.out, samples_ch)
@@ -80,8 +81,8 @@ workflow Analysis_PE{
       }
       else {
         fastqc(samples_ch)
-        doSTAR(params.ref, samples_ch)
-        KallistoPE(params.ref, samples_ch)
+        doSTAR(reference_path, samples_ch)
+        KallistoPE(reference_path, samples_ch)
 
         if (params.mpileup || params.deepvariant) {
           samtools_index(doSTAR.out.bam4bai)
@@ -89,7 +90,7 @@ workflow Analysis_PE{
 
 
         if (params.fcounts == true){
-          FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
+          FCounts(doSTAR.out[0],reference_path, samples_ch, featureCountP)
         }
 
         if (params.samtools_depth == true){
@@ -98,22 +99,22 @@ workflow Analysis_PE{
 
         // VC with gatk4 + vep
         if (params.gatk4 == true){
-          gatk_vc(doSTAR.out.bam4bai, params.ref)
-          Vep_gatk(gatk_vc.out.vc_file, params.ref,"gatk4")
+          gatk_vc(doSTAR.out.bam4bai, reference_path)
+          Vep_gatk(gatk_vc.out.vc_file, reference_path,"gatk4")
         }
 
         // VC with mpileup + vep
         if (params.mpileup == true){
-          bcftools_mpileup(samtools_index.out.align_files , params.ref, params.bed)
-          Vep_mpileup(bcftools_mpileup.out.vc_file, params.ref,"mpileup")
+          bcftools_mpileup(samtools_index.out.align_files , reference_path, params.bed)
+          Vep_mpileup(bcftools_mpileup.out.vc_file, reference_path,"mpileup")
         }
 
         // VC with deepvariant + vep
         if (params.deepvariant == true){
           Mosdepth(doSTAR.out[0],samtools_index.out[0],samples_ch)
           Bedtools(Mosdepth.out[0],samples_ch)
-          Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], params.ref, params.modelckptdeepar)
-          Vep_deepvariant(Deepvariant.out, params.ref,"deepvariant")
+          Deepvariant(doSTAR.out[0], samtools_index.out[0], samples_ch, Bedtools.out[0], reference_path, params.modelckptdeepar)
+          Vep_deepvariant(Deepvariant.out, reference_path,"deepvariant")
         }
 
 
@@ -133,12 +134,13 @@ workflow Analysis_SE{
 
       samples_ch
       md5_error_file // sert à attendre les md5
+      reference_path
 
 
     main:
       def featureCountP = " "  // single end
 
-      if(params.ref=="no_ref") {
+      if(reference_path=="no_ref") {
         buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
         fastqc(samples_ch)
         doSTAR(buildref.out, samples_ch)
@@ -146,8 +148,8 @@ workflow Analysis_SE{
       }
       else {
         fastqc(samples_ch)
-        doSTAR(params.ref, samples_ch)
-        FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
+        doSTAR(reference_path, samples_ch)
+        FCounts(doSTAR.out[0],reference_path, samples_ch, featureCountP)
       }
       multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 
@@ -158,6 +160,10 @@ workflow Analysis_SE{
 
 workflow {
   def date = new java.util.Date()
+  def defaultReferenceId = "ensembl_v${params.ensembl_release ?: 107}_GRCh38"
+  def reference_path = params.ref ?: "${params.reference_root ?: '/ref'}/${params.reference_id ?: defaultReferenceId}"
+  params.reference_manifest = referenceManifestFromPath(reference_path)
+  params.vep_cache = "${reference_path}/VEP"
 
   resource_source = channel.fromPath(params.scriptDir, checkIfExists: true)
   STAGE_WORKFLOW_RESOURCES(resource_source)
@@ -247,10 +253,10 @@ workflow {
 
   // 4. Analyse RNAseq
   if (params.single_end) {
-    Analysis_SE(samples_ch, md5_error_file)
+    Analysis_SE(samples_ch, md5_error_file, reference_path)
   }
   else {
-    Analysis_PE(samples_ch, sample_checked_csv, params.sampleInputDir, md5_error_file)
+    Analysis_PE(samples_ch, sample_checked_csv, params.sampleInputDir, md5_error_file, reference_path)
   }
 
   // 5. Vérifie les outputs process pour tous les échantillons.
@@ -287,10 +293,10 @@ workflow {
         pipeline   : "RNApipeline NF - V1.7.0",
         pipeline_version: "1.7.0",
         date       : date.toString(),
-        genome     : params.ref,
-        reference_id: referenceIdFromPath(params.ref),
-        reference_manifest: params.reference_manifest ?: referenceManifestFromPath(params.ref),
-        version    : makeVersionTag("V1.7", params.ref),
+        genome     : reference_path,
+        reference_id: referenceIdFromPath(reference_path),
+        reference_manifest: referenceManifestFromPath(reference_path),
+        version    : makeVersionTag("V1.7", reference_path),
         sequenceID : params.runNumber,
         single_end : params.single_end,
         samples    : names,
