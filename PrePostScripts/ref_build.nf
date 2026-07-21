@@ -1,5 +1,7 @@
 nextflow.enable.dsl=2
 
+import groovy.json.JsonSlurper
+
 /*
  * Infrastructure-neutral Ensembl reference build.
  *
@@ -51,11 +53,6 @@ process INIT_REFERENCE_STAGE {
     script:
     """
     set -euo pipefail
-    if [[ -e '${final_root}/reference_manifest.json' && '${force}' != 'true' ]]; then
-        echo "Reference already finalized: ${final_root}"
-        touch reference-stage.ready
-        exit 0
-    fi
     if [[ '${force}' == 'true' ]]; then
         rm -rf -- '${stage_root}'
     elif [[ -e '${stage_root}/.build.active' && -s '${stage_root}/.build.owner' \
@@ -388,12 +385,6 @@ process FINALIZE_REFERENCE {
     done
     test -d '${stage_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38'
 
-    if [[ -e '${final_root}/reference_manifest.json' && '${force}' != 'true' ]]; then
-        echo "Reference already finalized: ${final_root}"
-        touch reference-build.done
-        exit 0
-    fi
-
     python3 - '${stage_root}' <<'PY'
 import json, sys
 from pathlib import Path
@@ -427,10 +418,23 @@ manifest = {
 PY
 
     if [[ -e '${final_root}' ]]; then
-        [[ '${force}' == 'true' ]] || {
-            echo "Refusing to replace existing reference: ${final_root}" >&2
+        if [[ '${force}' != 'true' && -s '${final_root}/reference_manifest.json' ]]; then
+            existing_complete=\$(python3 - '${final_root}/reference_manifest.json' <<'PY'
+import json, sys
+try:
+    print('true' if json.load(open(sys.argv[1])).get('complete') is True else 'false')
+except Exception:
+    print('false')
+PY
+            )
+            if [[ "\$existing_complete" == 'true' ]]; then
+                echo "Refusing to replace complete reference without --force: ${final_root}" >&2
+                exit 1
+            fi
+        elif [[ '${force}' != 'true' ]]; then
+            echo "Refusing to replace existing reference without --force: ${final_root}" >&2
             exit 1
-        }
+        fi
         backup='${stage_root}.previous.\$(date -u +%Y%m%dT%H%M%SZ)'
         mv -- '${final_root}' "\$backup"
     fi
@@ -465,12 +469,22 @@ process CHECK_REFERENCE {
     python3 - '${final_root}/reference_manifest.json' <<'PY'
 import json, sys
 from pathlib import Path
-manifest = json.loads(Path(sys.argv[1]).read_text())
-assert manifest.get("complete") is True
-assert manifest.get("ensembl_release") == ${params.reference_release}
-for item in manifest["files"]:
-    path = Path(sys.argv[1]).parent / item["path"]
-    assert path.is_file() and path.stat().st_size >= item["size_bytes"], path
+manifest_path = Path(sys.argv[1])
+manifest = json.loads(manifest_path.read_text())
+if manifest.get("complete") is not True:
+    raise AssertionError("reference manifest is not finalized: complete must be true")
+if int(manifest.get("ensembl_release", -1)) != ${params.reference_release}:
+    raise AssertionError(
+        f"reference release mismatch: expected ${params.reference_release}, "
+        f"found {manifest.get('ensembl_release')!r}"
+    )
+files = manifest.get("files")
+if not isinstance(files, list) or not files:
+    raise AssertionError("reference manifest has no files list")
+for item in files:
+    path = manifest_path.parent / item["path"]
+    if not path.is_file() or path.stat().st_size < item["size_bytes"]:
+        raise AssertionError(f"missing or truncated reference artifact: {path}")
 PY
     test -d '${final_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38'
     touch reference-preflight.ready
@@ -482,8 +496,16 @@ workflow {
     final_root = params.reference_root + '/' + (params.reference_id ?: "ensembl_v${params.ensembl_release}_GRCh38")
     stage_root = params.reference_root + '/.staging/' + run_name + '.active'
     def final_manifest = new File(params.reference_root + '/' + (params.reference_id ?: "ensembl_v${params.ensembl_release}_GRCh38"), 'reference_manifest.json')
+    def manifest_complete = false
+    if (final_manifest.isFile()) {
+        try {
+            manifest_complete = new JsonSlurper().parse(final_manifest).complete == true
+        } catch (Exception ignored) {
+            manifest_complete = false
+        }
+    }
 
-    if (params.check_only || (!params.force && final_manifest.isFile())) {
+    if (params.check_only || (!params.force && manifest_complete)) {
         CHECK_REFERENCE(final_root)
     } else {
         stage = INIT_REFERENCE_STAGE(stage_root, final_root, params.force, params.reference_build_owner)
