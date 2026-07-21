@@ -265,11 +265,11 @@ process BUILD_GTF_ARTIFACTS {
       if(field %in% y) y[which(y==field)+1] else NA
     }))}
     geneTab=gtf[which(gtf[,3]=="gene"),]
-    geneTab$GeneID=getvalue(geneTab,"gene_id")
-    geneTab$GeneName=getvalue(geneTab,"gene_name")
-    geneTab$GeneName[is.na(geneTab$GeneName)]=geneTab$GeneID[is.na(geneTab$GeneName)]
-    geneTab$biotype=getvalue(geneTab,"gene_biotype")
-    geneTab=unique(geneTab); rownames(geneTab)=geneTab$GeneID
+    geneTab\$GeneID=getvalue(geneTab,"gene_id")
+    geneTab\$GeneName=getvalue(geneTab,"gene_name")
+    geneTab\$GeneName[is.na(geneTab\$GeneName)]=geneTab\$GeneID[is.na(geneTab\$GeneName)]
+    geneTab\$biotype=getvalue(geneTab,"gene_biotype")
+    geneTab=unique(geneTab); rownames(geneTab)=geneTab\$GeneID
     geneTab=unique(geneTab[,-c(9,6,2,3,8)])
     colnames(geneTab)[1:4]=c("seqname","start","end","strand")
     saveRDS(geneTab,file=paste0(args[2],".rds"))
