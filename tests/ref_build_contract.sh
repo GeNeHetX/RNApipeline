@@ -14,6 +14,9 @@ grep -q 'params.reference_id ?: "ensembl_v\${params.ensembl_release}_GRCh38"' "$
 grep -q "rnapipeline-buildref-v107" "$ROOT_DIR/README.md"
 grep -q "PREPARE_REFERENCE_INPUTS" "$ROOT_DIR/PrePostScripts/ref_build.nf"
 grep -q "FINALIZE_REFERENCE" "$ROOT_DIR/PrePostScripts/ref_build.nf"
+grep -q "val force_flag" "$ROOT_DIR/PrePostScripts/ref_build.nf"
+grep -q "val owner_id" "$ROOT_DIR/PrePostScripts/ref_build.nf"
+! grep -qE '^    val force$|^    val owner$' "$ROOT_DIR/PrePostScripts/ref_build.nf"
 
 mkdir -p "$WORK_DIR/complete/VEP/homo_sapiens/107_GRCh38"
 printf 'reference\n' > "$WORK_DIR/complete/ref.fa"

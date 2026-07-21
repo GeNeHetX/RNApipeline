@@ -42,8 +42,8 @@ process INIT_REFERENCE_STAGE {
     input:
     val stage_root
     val final_root
-    val force
-    val owner
+    val force_flag
+    val owner_id
 
     output:
     path 'reference-stage.ready', emit: ready
@@ -51,10 +51,10 @@ process INIT_REFERENCE_STAGE {
     script:
     """
     set -euo pipefail
-    if [[ '${force}' == 'true' ]]; then
+    if [[ '${force_flag}' == 'true' ]]; then
         rm -rf -- '${stage_root}'
     elif [[ -e '${stage_root}/.build.active' && -s '${stage_root}/.build.owner' \
-            && "\$(cat '${stage_root}/.build.owner')" != '${owner}' ]]; then
+            && "\$(cat '${stage_root}/.build.owner')" != '${owner_id}' ]]; then
         echo "Reference staging directory is owned by another run: ${stage_root}" >&2
         echo "Resume that run or use --force only for an intentional replacement." >&2
         exit 1
@@ -64,7 +64,7 @@ process INIT_REFERENCE_STAGE {
     fi
     mkdir -p '${stage_root}'
     touch '${stage_root}/.build.active'
-    printf '%s\n' '${owner}' > '${stage_root}/.build.owner'
+    printf '%s\n' '${owner_id}' > '${stage_root}/.build.owner'
     touch reference-stage.ready
     """
 }
@@ -334,7 +334,7 @@ process FINALIZE_REFERENCE {
     path vep
     val stage_root
     val final_root
-    val force
+    val force_flag
 
     output:
     path 'reference-build.done'
@@ -416,7 +416,7 @@ manifest = {
 PY
 
     if [[ -e '${final_root}' ]]; then
-        if [[ '${force}' != 'true' && -s '${final_root}/reference_manifest.json' ]]; then
+        if [[ '${force_flag}' != 'true' && -s '${final_root}/reference_manifest.json' ]]; then
             existing_complete=\$(python3 - '${final_root}/reference_manifest.json' <<'PY'
 import json, sys
 try:
@@ -429,7 +429,7 @@ PY
                 echo "Refusing to replace complete reference without --force: ${final_root}" >&2
                 exit 1
             fi
-        elif [[ '${force}' != 'true' ]]; then
+        elif [[ '${force_flag}' != 'true' ]]; then
             echo "Refusing to replace existing reference without --force: ${final_root}" >&2
             exit 1
         fi
