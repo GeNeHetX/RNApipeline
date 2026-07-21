@@ -1,7 +1,5 @@
 nextflow.enable.dsl=2
 
-import groovy.json.JsonSlurper
-
 /*
  * Infrastructure-neutral Ensembl reference build.
  *
@@ -499,7 +497,7 @@ workflow {
     def manifest_complete = false
     if (final_manifest.isFile()) {
         try {
-            manifest_complete = new JsonSlurper().parse(final_manifest).complete == true
+            manifest_complete = new groovy.json.JsonSlurper().parse(final_manifest).complete == true
         } catch (Exception ignored) {
             manifest_complete = false
         }
