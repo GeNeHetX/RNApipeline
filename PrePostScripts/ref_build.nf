@@ -15,15 +15,22 @@ params.reference_id = null
 params.reference_build_owner = System.getenv('NF_RUN_NAME') ?: 'manual'
 params.force = false
 params.check_only = false
-params.reference_kallisto_before_script = ''
+params.reference_kallisto_bin = '/ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/bin'
 params.reference_picard_jar = '/data/picard.jar'
 params.reference_gatk_jar = '/data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar'
 params.reference_containers = [
-    utility: 'docker://ubuntu:22.04',
+    // The input phase needs curl, gzip, and tar. Keep it on the same
+    // architecture-aware image used by the index-building phases.
+    utility: 'docker://genehetx/genehetx-rnaseq:v1.6.1',
     core: 'docker://genehetx/genehetx-rnaseq:v1.6.1',
     r: 'docker://rocker/r-ver:4.3.3',
-    kallisto: 'docker://quay.io/biocontainers/kallisto:0.51.1--heb0cbe2_0'
+    // Kallisto is installed as an architecture-selecting host wrapper. The
+    // wrapper invokes the matching ARM64 or x86_64 SIF on the worker.
+    kallisto: null
 ]
+
+params.reference_kallisto_before_script =
+    "export PATH=${params.reference_kallisto_bin}:\$PATH"
 
 params.reference_release = params.ensembl_release.toString()
 params.genome_url = 'https://ftp.ensembl.org/pub/release-' + params.reference_release + '/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz'
@@ -94,6 +101,9 @@ process PREPARE_REFERENCE_INPUTS {
     script:
     """
     set -euo pipefail
+    command -v curl >/dev/null
+    command -v gzip >/dev/null
+    command -v tar >/dev/null
     mkdir -p sources VEP
     if [[ -e '${stage_root}/.inputs.complete' ]]; then
         cp -a '${stage_root}/sources' '${stage_root}/VEP' \
@@ -213,6 +223,7 @@ process BUILD_KALLISTO_INDEX {
     script:
     """
     set -euo pipefail
+    command -v kallisto >/dev/null
     kallisto index -i kalliso_index transcriptom.fa
     ln kalliso_index kallisto_index
     cp -f kalliso_index kallisto_index '${stage_root}/'
