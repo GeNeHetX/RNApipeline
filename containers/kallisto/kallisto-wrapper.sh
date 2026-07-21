@@ -15,8 +15,4 @@ command -v "$APPTAINER_BIN" >/dev/null 2>&1 || {
 }
 [[ -s "$IMAGE" ]] || { echo "Missing Kallisto SIF: $IMAGE" >&2; exit 1; }
 
-exec "$APPTAINER_BIN" exec --no-home \
-    --bind "$PWD:$PWD" \
-    --bind /ref:/ref \
-    --bind /biojobs:/biojobs \
-    "$IMAGE" kallisto "$@"
+exec "$APPTAINER_BIN" exec --no-home "$IMAGE" kallisto "$@"

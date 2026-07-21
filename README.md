@@ -81,7 +81,7 @@ ls "${INPUT_DIR}" \
   ```
 
  2. **Generate indexes** required for each step of the pipeline
-* You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
+* Use `PrePostScripts/ref_build.nf` to generate them. The workflow documents each independent reference-building step and validates the complete result before publication. \
 For this step, you will need: 
      * Reference genome file: (fasta)  GRCh38.p13 you can retrieve it from Ensembl Database.
      * Gene annotation file : (GTF) you can retrieve it from the Ensembl Database.
@@ -92,14 +92,12 @@ This step requires 32Go RAM, so it is advised to generate once for the same geno
 
 ### TOD/PAM infrastructure
 
-On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount. Reference
-preparation is staged on node-local `/srv/slurm/scratch` and published
-atomically below `/ref`. IAC `/etc/nextflow/site.config` owns Slurm, scratch,
-Apptainer, caches, and queue profiles. `TOD_infra.config` contains only
-RNApipeline parameters and process resources. The `nf-run NAME` launcher
-supplies the per-run `/biojobs/nextflow/NAME/work` directory. Repeating the same
-name resumes the existing run; do not create a new random run name for every
-retry.
+On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount. IAC
+`/etc/nextflow/site.config` owns Slurm, scratch, Apptainer, caches, and queue
+profiles. `TOD_infra.config` supplies the reference root, shared staging path,
+containers, and bind options. `nf-run NAME` supplies the per-run
+`/biojobs/nextflow/NAME/work` directory. Repeating the same name resumes the
+existing run; do not create a new random run name for every retry.
 
 Build the Kallisto SIFs once, before the reference. The ARM64 SIF must be built
 on PAM; the x86_64 SIF must be built on TOD (Intel and AMD are both x86_64).
@@ -108,23 +106,33 @@ destination directory. From a controller, submit them to the matching worker
 partition; do not build the ARM64 image on `ctra`.
 
 After both SIFs exist under `/ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/`,
-run the reference workflow. `nf-run` runs the coordinator on `ctra`; the
-workflow stages the builder source, prepares inputs and containers, then sends
+install the architecture-selecting Kallisto launcher once:
+
+```bash
+install -D -m 0755 containers/kallisto/kallisto-wrapper.sh \
+  /ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/bin/kallisto
+```
+
+Then run the reference workflow. `nf-run` runs the coordinator on `ctra`; the
+workflow downloads and validates one homogeneous Ensembl release, then sends
 the independent sequence, variant, Kallisto, GTF, and STAR tasks to Slurm in
-parallel. One final task validates and publishes the complete reference:
+parallel. Each task publishes its own completed files to the staging directory.
+The final task only validates the files and renames the completed staging
+directory into place:
 
 ```bash
 source "$HOME/IAC/infra/scripts/shell-setup"
 nf-run rnapipeline-ref-full \
   "$HOME/rna/RNApipeline-tod/PrePostScripts/ref_build.nf" \
-  --ref_root /ref \
-  --force
+  -c "$HOME/rna/RNApipeline-tod/configExamples/TOD_infra.config" \
+  --ref_root /ref
 ```
 
-The reference workflow never creates or publishes SIFs. It creates the
-architecture-selecting wrapper at `.../bin/kallisto` after validating both SIFs;
-the wrapper selects the correct SIF after Slurm assigns the worker. The same
-reference can therefore be built on PAM or TOD and used on both architectures.
+The reference workflow never creates SIFs and never invokes Apptainer directly
+from a shell helper. The Kallisto launcher selects the SIF after Slurm assigns
+the worker; Nextflow/TOD config supplies the `/ref` and `/biojobs` bindings.
+The same reference can therefore be built on PAM or TOD and used on both
+architectures.
 
 For the normal serving setup, use `pam_cpu`. To build on TOD, use the IAC
 AMD64/burst profile and enable RNA burst mode first. Resume the same run name
@@ -183,11 +191,11 @@ bcftools step are enabled, use burst mode. Their `amd64` process labels route
 those tasks to TOD while compatible tasks may still use PAM. `-profile amd64`
 remains available when the entire run must stay on TOD.
 
-The build validates the images it executes on ARM64 and publishes the
-architecture-independent reference plus both Kallisto SIF variants. The
-upstream VEP image is AMD64-only, so an ARM reference build records its VEP
-runtime check as deferred to a TOD worker. `--force` replaces an existing
-reference only after the staged build succeeds.
+The build uses the configured Kallisto runtime for the worker architecture and
+requires all Ensembl inputs to use the same release. `--force` is only for an
+intentional replacement; a normal retry uses the same run name without it.
+The staging directory is owned by the stable `nf-run` name, so a different
+run cannot accidentally overwrite an active build.
 
 ## 3. Setting up  ##
 The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platform \
@@ -209,7 +217,7 @@ For a local execution, modify the local.config file and for Google Cloud executi
     * ```params.mpileup``` = true , by default, but if you don't want to execute Mpileup put false for this parameter 
     * ```params.vep``` = true , by default, but if you don't want to execute VEP put false for this parameter 
   * Reference paths :
-    * ```params.ref= ```"/PATH/to/ensembl_v107_GRCh38_p13" -> specify the path to the directory that contains all the reference data for pipeline execution (generated using ref_build.sh in the data-preparation step)
+    * ```params.ref= ```"/PATH/to/ensembl_v107_GRCh38" -> specify the path to the directory that contains all the reference data for pipeline execution (generated by the reference Nextflow workflow)
     * But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
     * ```params.vep_cache``` = "/PATH/to/ensembl_v107_GRCh38_p13/VEP"
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
@@ -284,7 +292,7 @@ For more information about the previous steps, please check the Google Cloud Doc
 To execute the pipeline, please follow these instructions:
   1. Log in to Google Cloud
   2. ```Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)``` (activation of the json key on youre work_directory)
-  3. Copy all your fastq files and the directory generated by the ref_build.sh  using the following command: gsutil cp -r dir1/dir2 gs://my-bucket.
+  3. Copy all your fastq files and the directory generated by the reference workflow using the following command: gsutil cp -r dir1/dir2 gs://my-bucket.
   
    d) Modify the machines' capacities on the netflowGCP.config (CPUs, RAM, Disk, container) (if you want) 
   ``` withName: doSTAR{ \
