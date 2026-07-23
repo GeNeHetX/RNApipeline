@@ -24,6 +24,7 @@ grep -q "command -v tar" "$ROOT_DIR/PrePostScripts/ref_build.nf"
 grep -q "reference_kallisto_bin" "$ROOT_DIR/PrePostScripts/ref_build.nf"
 grep -q "kallisto: null" "$ROOT_DIR/PrePostScripts/ref_build.nf"
 grep -q "command -v kallisto" "$ROOT_DIR/PrePostScripts/ref_build.nf"
+! grep -q "cp -a" "$ROOT_DIR/PrePostScripts/ref_build.nf"
 
 mkdir -p "$WORK_DIR/complete/VEP/homo_sapiens/107_GRCh38"
 printf 'reference\n' > "$WORK_DIR/complete/ref.fa"

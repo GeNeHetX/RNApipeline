@@ -106,8 +106,8 @@ process PREPARE_REFERENCE_INPUTS {
     command -v tar >/dev/null
     mkdir -p sources VEP
     if [[ -e '${stage_root}/.inputs.complete' ]]; then
-        cp -a '${stage_root}/sources' '${stage_root}/VEP' \
-            '${stage_root}/ref.fa' '${stage_root}/ref.gtf' \
+        cp -r '${stage_root}/sources' '${stage_root}/VEP' .
+        cp -f '${stage_root}/ref.fa' '${stage_root}/ref.gtf' \
             '${stage_root}/transcriptom.fa' '${stage_root}/cdna.fa' \
             '${stage_root}/knowns_variants.vcf' .
     else
@@ -135,7 +135,8 @@ process PREPARE_REFERENCE_INPUTS {
     cp -f transcriptom.fa cdna.fa
     mkdir -p '${stage_root}/sources' '${stage_root}/VEP'
     fi
-    cp -a sources VEP ref.fa ref.gtf transcriptom.fa cdna.fa knowns_variants.vcf \
+    cp -r sources VEP '${stage_root}/'
+    cp -f ref.fa ref.gtf transcriptom.fa cdna.fa knowns_variants.vcf \
         '${stage_root}/'
     touch '${stage_root}/.inputs.complete' reference-inputs.ready
     """
@@ -282,7 +283,7 @@ process BUILD_GTF_ARTIFACTS {
     write.table(geneTab,file=paste0(args[2],".tsv"),quote=F,sep="\\t")
     R_SCRIPT
     Rscript gtf/procGTF.R gtf/ref.GeneLvlOnly.gtf gtf/refGeneID_ensembl_v${params.reference_release}
-    cp -a gtf/. '${stage_root}/'
+    cp -r gtf/. '${stage_root}/'
     touch '${stage_root}/.gtf-artifacts.complete' gtf-artifacts.ready
     """
 }
@@ -314,7 +315,7 @@ process BUILD_STAR_INDEX {
     STAR --runThreadN ${task.cpus} --runMode genomeGenerate \
         --genomeDir star --genomeFastaFiles ref.fa --sjdbOverhang 100 \
         --sjdbGTFfile ref.gtf --genomeSAindexNbases 11
-    cp -a star/. '${stage_root}/'
+    cp -r star/. '${stage_root}/'
     touch '${stage_root}/.star-indexes.complete' star-index.ready
     """
 }
@@ -375,7 +376,8 @@ process FINALIZE_REFERENCE {
     done
     if [[ ! -d '${stage_root}/VEP/homo_sapiens/${params.reference_release}_GRCh38' ]]; then
         rm -rf '${stage_root}/VEP'
-        cp -a vep '${stage_root}/VEP'
+        mkdir -p '${stage_root}/VEP'
+        cp -r vep/. '${stage_root}/VEP/'
     fi
     required=(
       ref.fa ref.fa.fai ref.dict ref.gtf transcriptom.fa cdna.fa
