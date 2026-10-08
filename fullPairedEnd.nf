@@ -55,7 +55,7 @@ workflow Analysis_PE{
         buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
         fastqc(samples_ch)
         doSTAR(buildref.out, samples_ch)
-        FCounts(doSTAR.out[0], buildref.out, samples_ch, featureCountP)
+        FCounts(doSTAR.out.bam4bai, buildref.out, featureCountP)
         KallistoPE(buildref.out, samples_ch)
         gatk_vc(doSTAR.out.bam4bai, buildref.out)
       }
@@ -119,14 +119,12 @@ workflow Analysis_SE{
         buildref(params.fasta_ref,params.GTF,params.cdna,params.known_vcf)
         fastqc(samples_ch)
         doSTAR(buildref.out, samples_ch)
-        FCounts(doSTAR.out[0], buildref.out, samples_ch, featureCountP)
+        FCounts(doSTAR.out.bam4bai, buildref.out, featureCountP)
       }
       else {
         fastqc(samples_ch)
         doSTAR(params.ref, samples_ch)
-        samples_ch.view          { "SAMPLES_CH -> ${it[0]}" }
-        doSTAR.out[0].view       { "STAR_OUT   -> ${it}" }
-        FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
+        FCounts(doSTAR.out.bam4bai,params.ref, featureCountP)
       }
       multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
 
