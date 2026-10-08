@@ -159,9 +159,8 @@ process FCounts {
 	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
 
 	input:
-	path bam
+	tuple val(sample), path(bam)
 	path index
-	tuple val(sample), file(fqFile)
 	val featureCountP // -p if paired-end
 
 

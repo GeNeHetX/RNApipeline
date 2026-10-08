@@ -69,7 +69,7 @@ workflow Analysis_PE{
         }
         
         if (params.fcounts == true){
-          FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
+          FCounts(doSTAR.out.bam4bai,params.ref, featureCountP)
         }
 
         if (params.samtools_depth == true){
@@ -124,6 +124,8 @@ workflow Analysis_SE{
       else {
         fastqc(samples_ch)
         doSTAR(params.ref, samples_ch)
+        samples_ch.view          { "SAMPLES_CH -> ${it[0]}" }
+        doSTAR.out[0].view       { "STAR_OUT   -> ${it}" }
         FCounts(doSTAR.out[0],params.ref, samples_ch, featureCountP)
       }
       multiqc(doSTAR.out[2].mix(doSTAR.out[1]).collect())
