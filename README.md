@@ -38,7 +38,7 @@ read2 field and `--single_end true`. The legacy CSV interface remains available
 through `--csvSample` and `--sampleInputDir`. Legacy directory-wide MD5 checks
 are opt-in with `--check_md5 true` and CSV input.
 
-After the updated branch and tool image have been published, run on ctra:
+Run on ctra:
 
 ```bash
 git -c safe.directory=/biojobs/pipelines/RNApipeline -C /biojobs/pipelines/RNApipeline switch tod-nf
@@ -57,7 +57,7 @@ Repeat the same run name to resume. Use a new run name when changing analysis
 settings or replacing NAS FASTQs at existing paths: ctra cannot inspect their
 size or modification time for cache invalidation.
 
-Every expression step uses the same image on both architectures:
+Every expression step uses `genehetx/genehetx-rnaseq:1.8.0` on both architectures:
 
 | Tool | Version |
 | --- | --- |
@@ -72,7 +72,7 @@ The image recipe preserves the supplied expression tool versions and pins the
 shared base image. Build and publish it with Docker Hub write access:
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 --push -t genehetx/genehetx-rnaseq:v1.7.1 Docker/Docker_file_genehetx-rnaseq
+docker buildx build --platform linux/amd64,linux/arm64 --push -t genehetx/genehetx-rnaseq:1.8.0 Docker/Docker_file_genehetx-rnaseq
 ```
 
 The test disables variant calling. Existing optional DeepVariant, bcftools, and

@@ -37,5 +37,5 @@ RUN STAR --version | grep -Fx '2.7.10a' \
     && fastqc --version | grep -F 'v0.12.1' \
     && multiqc --version | grep -F 'version 1.25.1' \
     && samtools --version | head -1 | grep -Fx 'samtools 1.13'
-LABEL org.opencontainers.image.version="1.7.1"
+LABEL org.opencontainers.image.version="1.8.0"
 WORKDIR /data
