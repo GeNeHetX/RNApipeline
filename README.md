@@ -25,6 +25,10 @@ reference, output directory, and process resources. `nf-run` supplies the site
 Slurm, Apptainer, local scratch, architecture constraints, and S3 settings.
 
 The test sheet is [configExamples/testpmlmremap.txt](configExamples/testpmlmremap.txt).
+To change task size, edit the two `params` lines at the top of
+`configExamples/IAC.config`: `max_threads` (STAR and Kallisto, default 6) and
+`max_star_memory` (STAR Slurm request, default 36 GB). The nearby STAR sort
+memory cap is a STAR setting; keep it below the STAR memory request.
 It has four whitespace-separated fields per row, without a header:
 
 ```text
@@ -43,16 +47,30 @@ Run on ctra:
 ```bash
 git -c safe.directory=/biojobs/pipelines/RNApipeline -C /biojobs/pipelines/RNApipeline switch tod-nf
 git -c safe.directory=/biojobs/pipelines/RNApipeline -C /biojobs/pipelines/RNApipeline pull --ff-only origin tod-nf
-nf-run pmlm-remap /biojobs/pipelines/RNApipeline/fullPairedEnd.nf -profile pam_cpu -c /biojobs/pipelines/RNApipeline/configExamples/IAC.config --sampleList /biojobs/pipelines/RNApipeline/configExamples/testpmlmremap.txt
+nf-run pmlm-remap-1.8.0 /biojobs/pipelines/RNApipeline/fullPairedEnd.nf -profile pam_cpu -c /biojobs/pipelines/RNApipeline/configExamples/IAC.config --sampleList /biojobs/pipelines/RNApipeline/configExamples/testpmlmremap.txt
 ```
 
-Results go to `/biojobs/nextflow/pmlm-remap/results`. To publish to object storage,
-add `--outputdir s3://process/rnapipeline/pmlm-remap`. To use migrated inputs,
+Results go to `/biojobs/nextflow/pmlm-remap-1.8.0/results`. To publish to object storage,
+add `--outputdir s3://process/rnapipeline/pmlm-remap-1.8.0`. To use migrated inputs,
 add `--sampleInputDir s3://raw/ACTUAL_PROJECT_PREFIX/01_RawFiles`; this overrides
 the directory column without changing the filenames.
 
-To use the mixed PAM/TOD pool after infrastructure repair, an administrator runs
-`sudo /usr/local/bin/infra-mode burst`, then the same launch uses `-profile burst`.
+To use the mixed PAM/TOD pool, an administrator first runs this on ctra:
+
+```bash
+sudo /usr/local/bin/infra-mode burst
+```
+
+Then run on ctra with the `burst` profile (the sample sheet and config stay the same):
+
+```bash
+nf-run pmlm-remap-1.8.0 /biojobs/pipelines/RNApipeline/fullPairedEnd.nf -profile burst -c /biojobs/pipelines/RNApipeline/configExamples/IAC.config --sampleList /biojobs/pipelines/RNApipeline/configExamples/testpmlmremap.txt
+```
+
+This profile submits to the shared PAM/TOD burst partition and requires burst
+mode to be active. At 6 CPUs and 36 GB per STAR task, two fit on a PAM node only
+when at least 12 CPUs and 72 GB are available; TOD's 70 GB burst cap allows one
+such STAR task per TOD node. Slurm chooses where each task runs.
 Repeat the same run name to resume. Use a new run name when changing analysis
 settings or replacing NAS FASTQs at existing paths: ctra cannot inspect their
 size or modification time for cache invalidation.
