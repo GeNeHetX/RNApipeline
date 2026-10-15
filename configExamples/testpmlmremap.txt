@@ -1,0 +1,5 @@
+PMLM_001 PMLM_001_R1.fastq.gz PMLM_001_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles
+PMLM_002 PMLM_002_R1.fastq.gz PMLM_002_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles
+PMLM_003 PMLM_003_R1.fastq.gz PMLM_003_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles
+PMLM_004 PMLM_004_R1.fastq.gz PMLM_004_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles
+PMLM_005 PMLM_005_R1.fastq.gz PMLM_005_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles

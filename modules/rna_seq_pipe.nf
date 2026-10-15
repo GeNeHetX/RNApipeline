@@ -19,14 +19,23 @@ process doOnlySTARnCount {
 	script:
 	"""
 
+	for fq in $fqFile; do
+	    if [ ! -r "\$fq" ] || [ ! -s "\$fq" ]; then
+	        echo "FASTQ missing, empty or unreadable on \$(hostname): \$fq" >&2
+	        exit 1
+	    fi
+	done
+
 	fastqc -t $task.cpus -q $fqFile
 
+
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile \
+	--readFilesIn $fqFile\
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
+	--outSAMattrRGline ID:$sample SM:$sample \
 	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf \
+	--sjdbGTFfile $index/ref.gtf\
 	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
 	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
 	--alignIntronMax $params.alignIntronMax \
@@ -34,11 +43,11 @@ process doOnlySTARnCount {
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
 	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin \
+	--alignSJoverhangMin $params.alignSJoverhangMin\
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
 	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
+	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax
 
@@ -63,32 +72,35 @@ process fastqc {
 	tuple val(sample), file(fqFile)
 
 	output:
-	path '*_fastqc.{zip,html}'
+	tuple val(sample), path('*_fastqc.{zip,html}'), emit: reports
 
 	when:
-	params.fastqc == true
-
+	params.fastqc.toString().toBoolean()
 
 	script:
 	"""
 	#echo $fqFile
+	for fq in $fqFile; do
+	    if [ ! -r "\$fq" ] || [ ! -s "\$fq" ]; then
+	        echo "FASTQ missing, empty or unreadable on \$(hostname): \$fq" >&2
+	        exit 1
+	    fi
+	done
+
 	fastqc -t $task.cpus -q $fqFile
 	"""
 }
 
 process samtools_index {
 
-
 	input :
 	tuple val(sample), path(bamFile)
 
 	output:
-	tuple val(sample), path(bamFile), path ("${sample}*.bai"), emit : align_files
-
+	tuple val(sample), path(bamFile), path ("${bamFile}.bai"), emit : align_files
 
 	when:
-	params.star == true
-
+	params.star.toString().toBoolean()
 
 	script:
 	"""
@@ -111,21 +123,29 @@ process doSTAR {
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
+
 	when:
-	params.star == true
+	params.star.toString().toBoolean()
 
 	script:
-
 	"""
 
 	# fastqc -t $task.cpus -q $fqFile
 
+	for fq in $fqFile; do
+	    if [ ! -r "\$fq" ] || [ ! -s "\$fq" ]; then
+	        echo "FASTQ missing, empty or unreadable on \$(hostname): \$fq" >&2
+	        exit 1
+	    fi
+	done
+
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile \
+	--readFilesIn $fqFile\
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
+	--outSAMattrRGline ID:$sample SM:$sample \
 	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf \
+	--sjdbGTFfile $index/ref.gtf\
 	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
 	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
 	--alignIntronMax $params.alignIntronMax \
@@ -133,11 +153,11 @@ process doSTAR {
 	--limitOutSJcollapsed $params.limitOutSJcollapsed \
 	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
 	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin \
+	--alignSJoverhangMin $params.alignSJoverhangMin\
 	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
 	--alignIntronMin $params.alignIntronMin \
 	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
+	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
 	--outFilterMismatchNmax $params.outFilterMismatchNmax \
 	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
 	--limitBAMsortRAM $params.limitBAMsortRAM \
@@ -163,9 +183,8 @@ process FCounts {
 	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
 
 	input:
-	path bam
+	tuple val(sample), path(bam)
 	path index
-	tuple val(sample), file(fqFile)
 	val featureCountP // -p if paired-end
 
 
@@ -174,13 +193,14 @@ process FCounts {
 	//path "*genecount_QC.txt"
 	path "*exonscount.txt"
 	path "*genecount.txt"
+	tuple val(sample), path("*exonscount.txt"), path("*genecount.txt"), emit: counts
+	path "*count.txt.summary", emit: summaries
 
 	script:
 	"""
 	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $bam
 
 	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id' $bam
-
 
 	"""
 
@@ -206,7 +226,7 @@ process FCounts {
 process multiqc {
 	publishDir "${params.outputdir}/Multiqc_output", mode: 'copy'
     input:
-	path files
+        path files
 
     output:
 		file "*.html"
@@ -227,14 +247,13 @@ process samtools_depth{
 	path bedfile
 
 	output:
-
-	path "*_depth.txt"
+	tuple val(sample), path("*_depth.txt"), emit: depths
 
 	when:
-	params.samtools_depth == true
+	params.samtools_depth.toString().toBoolean()
 
 	script:
-	if (params.no_multimapped == true)
+	if (params.no_multimapped.toString().toBoolean())
 		"""
 		samtools depth -a -H -b $bedfile $bamFile -Q 255 -o ${sample}_q255_depth.txt
 		"""

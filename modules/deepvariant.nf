@@ -5,35 +5,32 @@ process Mosdepth {
     label 'amd64'
     //publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'docker://quay.io/biocontainers/mosdepth:0.3.1--h4dc83fb_1'
+    container 'quay.io/biocontainers/mosdepth:0.3.1--h4dc83fb_1'
 
     input:
     // path("*${params.suffixbam}.bam")
-    file(bamfile)
-    file(baifile)
-    tuple val(sample), file(fqFile)
+    tuple val(sample), path(bamfile), path(baifile)
 
 	output:
         // path("${sample}_coverage")
-    file("${sample}_coverage.per-base.bed.gz")
+    tuple val(sample), path("${sample}_coverage.per-base.bed.gz"), emit: coverage
 	// tuple val(sample), path('*.mosdepth.global.dist.txt')
     // tuple val(sample), path('*.mosdepth.summary.txt')
    // val(sample)
     //path('*.per-base.bed.gz')
 
     // tuple val(sample), path('*.per-base.bed.gz.csi')
-    
+
 
 
 	when:
-	params.deepvariant == true
-
+	params.deepvariant.toString().toBoolean()
 	script:
 	"""
-   
-    mosdepth --threads ${params.nproc} \
+
+    mosdepth --threads ${task.cpus} \
     ${sample}_coverage  ${bamfile}
-    
+
 
 	"""
 }
@@ -43,20 +40,19 @@ process Bedtools {
     label 'amd64'
     //publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'docker://quay.io/biocontainers/bedtools:2.23.0--h5b5514e_6'
+    container 'quay.io/biocontainers/bedtools:2.23.0--h5b5514e_6'
 
     input:
-        file(perbasebed)
-        tuple val(sample), file(fqFile)
+        tuple val(sample), path(perbasebed)
 	//tuple val(sample), path('*.per-base.bed.gz')
 
 
 	output:
-    file("${sample}_3x.bed")
+    tuple val(sample), path("${sample}_3x.bed"), emit: regions
 
 
 	when:
-	params.deepvariant == true
+	params.deepvariant.toString().toBoolean()
 	// """
     // gzip -dc ${perbasebed} | \
     // egrep -v 'HLA|decoy|random|alt|chrUn|chrEBV' | \
@@ -78,23 +74,19 @@ process Deepvariant {
     label 'amd64'
     publishDir "${params.outputdir}/deepvariant_output", mode: 'copy'
 
-    container 'docker://google/deepvariant:1.4.0'
+    container 'google/deepvariant:1.4.0'
 
 	input :
-    file(bamfile)
-    file(baifile)
-    tuple val(sample), file(fqFile)
-    file(bedfile)
+    tuple val(sample), path(bamfile), path(baifile), path(bedfile)
     path(reffa)
     path(model)
 
-	output: 
+	output:
     tuple val(sample), file("${sample}.output.vcf.gz")
 
 
 	when:
-	params.deepvariant == true
-
+	params.deepvariant.toString().toBoolean()
 	script:
 	"""
     run_deepvariant \
@@ -103,11 +95,11 @@ process Deepvariant {
     --ref="${reffa}/ref.fa" \
     --reads="${bamfile}" \
     --output_vcf="${sample}.output.vcf.gz" \
-    --num_shards=${params.nproc} \
+    --num_shards=${task.cpus} \
     --regions=${bedfile} \
     --make_examples_extra_args="split_skip_reads=true,channels=''" \
     --intermediate_results_dir output/intermediate_results_dir
-    
+
     """
-    
+
 }

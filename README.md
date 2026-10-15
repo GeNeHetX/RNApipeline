@@ -17,6 +17,75 @@ It is composed of the following steps :
 * Summary of the FeatureCounts and STAR quality using (MultiQC)
 
 
+## TOD/PAM with IAC
+
+Use `fullPairedEnd.nf` on the `tod-nf` branch. `nextflow.config` holds analysis
+parameters and tool images. `configExamples/IAC.config` selects the shared
+reference, output directory, and process resources. `nf-run` supplies the site
+Slurm, Apptainer, local scratch, architecture constraints, and S3 settings.
+
+The test sheet is [configExamples/testpmlmremap.txt](configExamples/testpmlmremap.txt).
+It has four whitespace-separated fields per row, without a header:
+
+```text
+PMLM_001 PMLM_001_R1.fastq.gz PMLM_001_R2.fastq.gz /mnt/bob/01_RawRNASeq/PDAC_MetaboLiverMet/01_RawFiles
+```
+
+The NAS need only be mounted on workers. FASTQ readability is checked there;
+ctra reads only the sample sheet. Filenames are used exactly as listed. Duplicate
+sample IDs and reused FASTQs are rejected. For single-end input, use `-` in the
+read2 field and `--single_end true`. The legacy CSV interface remains available
+through `--csvSample` and `--sampleInputDir`. Legacy directory-wide MD5 checks
+are opt-in with `--check_md5 true` and CSV input.
+
+After the updated branch and tool image have been published, run on ctra:
+
+```bash
+git -c safe.directory=/biojobs/pipelines/RNApipeline -C /biojobs/pipelines/RNApipeline switch tod-nf
+git -c safe.directory=/biojobs/pipelines/RNApipeline -C /biojobs/pipelines/RNApipeline pull --ff-only origin tod-nf
+nf-run pmlm-remap /biojobs/pipelines/RNApipeline/fullPairedEnd.nf -profile pam_cpu -c /biojobs/pipelines/RNApipeline/configExamples/IAC.config --sampleList /biojobs/pipelines/RNApipeline/configExamples/testpmlmremap.txt
+```
+
+Results go to `/biojobs/nextflow/pmlm-remap/results`. To publish to object storage,
+add `--outputdir s3://process/rnapipeline/pmlm-remap`. To use migrated inputs,
+add `--sampleInputDir s3://raw/ACTUAL_PROJECT_PREFIX/01_RawFiles`; this overrides
+the directory column without changing the filenames.
+
+To use the mixed PAM/TOD pool after infrastructure repair, an administrator runs
+`sudo /usr/local/bin/infra-mode burst`, then the same launch uses `-profile burst`.
+Repeat the same run name to resume. Use a new run name when changing analysis
+settings or replacing NAS FASTQs at existing paths: ctra cannot inspect their
+size or modification time for cache invalidation.
+
+Every expression step uses the same image on both architectures:
+
+| Tool | Version |
+| --- | --- |
+| STAR | 2.7.10a |
+| Kallisto | 0.51.0 |
+| FeatureCounts | 2.0.2 |
+| FastQC | 0.12.1 |
+| MultiQC | 1.25.1 |
+| Samtools | 1.13 |
+
+The image recipe preserves the supplied expression tool versions and pins the
+shared base image. Build and publish it with Docker Hub write access:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 --push -t genehetx/genehetx-rnaseq:v1.7.1 Docker/Docker_file_genehetx-rnaseq
+```
+
+The test disables variant calling. Existing optional DeepVariant, bcftools, and
+VEP images remain x86_64-only and use the site's `amd64` constraint when enabled.
+Their sample flow is keyed by sample ID. STAR now honors `outFilterMultimapNmax`
+(the main-branch command accidentally used `winAnchorMultimapNmax` for both).
+
+`python3 tests/sample_identity.py` runs the real workflow with controlled fake
+tools that reject mismatched samples, including out-of-order completions,
+paired/single-end input, CSV input, optional variant paths, and invalid sheets.
+The final summary checks enabled per-sample outputs from channels, rather than
+scanning asynchronously published directories.
+
 ## 0. Pre-requisites ##
 Nextflow and Docker are required \
 The two Docker images containing all the tools required by the pipeline are available on Docker Hub : \
@@ -29,43 +98,43 @@ In order to run correctly, four main variables :
 * _ref_ : the directory with the reference genome information
 * _config_file_ : the file to complete according to your sequencing library (template available in **configExamples** directory)
 
-:warning: __if running on google cloud__ : (Check the section 5 "Google Cloud execution) 
+:warning: __if running on google cloud__ : (Check the section 5 "Google Cloud execution)
 
-:warning: __if ref is not available__ : (check section 2 "Data preparation" step 2 : generate indexes ...) 
+:warning: __if ref is not available__ : (check section 2 "Data preparation" step 2 : generate indexes ...)
 
 
 
 ## 1. Clone this repository ##
-- The first step is the git cloning of the pipeline directory 
+- The first step is the git cloning of the pipeline directory
 
-```git clone https://github.com/GeNeHetX/RNApipeline``` 
+```git clone https://github.com/GeNeHetX/RNApipeline```
 
 
 ## 2. Data preparation ##
- 1. **Generate a sample list** containing all of your sample names without the suffixes and their associated project name using the following bash comman line: 
-  * __For single end data:__ 
+ 1. **Generate a sample list** containing all of your sample names without the suffixes and their associated project name using the following bash comman line:
+  * __For single end data:__
   ```bash
   INPUT_DIR="path/to/your/Inputdir"
   PROJECT_NAME="projectName"
   (echo "ID_Sample,Project"; ls "${INPUT_DIR}" | sed -E 's/_R1\.fastq\.gz$//' | sort -u | awk -v proj="${PROJECT_NAME}" '{print $0 "," proj}') > samlist.csv
   ```
-  - Inputdir : is the directory containing only your fastq files and nothing else \ 
-  - _R1.fastq.gz : is an example of a suffix, and it can be different from one dataset to another 
+  - Inputdir : is the directory containing only your fastq files and nothing else \
+  - _R1.fastq.gz : is an example of a suffix, and it can be different from one dataset to another
   - projectName : the sample's project name
-  - samlist.csv: is the output of the command, it is a txt file that contains a list of your sample names  
-  **Example**: 
+  - samlist.csv: is the output of the command, it is a txt file that contains a list of your sample names
+  **Example**:
   ```
-  Inputdir : 
+  Inputdir :
     * sample1_R1.fastq.gz
-    * sample2_R1.fastq.gz 
-    
+    * sample2_R1.fastq.gz
+
    samlist.csv:
     ID_Sample,Project
     sample1, projectName
     sample2, projectName
-  ```   
+  ```
 
-   * __For paired end data__ :  
+   * __For paired end data__ :
   ```bash
 INPUT_DIR="path/to/your/Inputdir"
 PROJECT_NAME="projectName"
@@ -81,123 +150,14 @@ ls "${INPUT_DIR}" \
   ```
 
  2. **Generate indexes** required for each step of the pipeline
-* Use `PrePostScripts/ref_build.nf` to generate them. The workflow documents each independent reference-building step and validates the complete result before publication. \
-For this step, you will need: 
+* You will find in the ref_build.sh bash script, all the command lines that will help you to generate them. Please check the ref_build.sh file to understand the aim of each command line. \
+For this step, you will need:
      * Reference genome file: (fasta)  GRCh38.p13 you can retrieve it from Ensembl Database.
      * Gene annotation file : (GTF) you can retrieve it from the Ensembl Database.
-     * Transcriptome file: (Cdna) you can retrieve it from the Ensembl Database. 
+     * Transcriptome file: (Cdna) you can retrieve it from the Ensembl Database.
      * Make sure that the FASTA and the GTF belong to the same genome version !!
-     * Get a Known-variants file: You can retrieve it from Ensembl Database. 
-This step requires 32Go RAM, so it is advised to generate it once for a given
-genome. The standard project parameters are in `nextflow.config`; other
-execution environments can use the matching file under `configExamples/`.
-
-### TOD/PAM infrastructure
-
-On the TOD/PAM Slurm infrastructure, `/ref` is a direct CephFS mount. IAC
-`/etc/nextflow/site.config` owns Slurm, scratch, Apptainer, caches, and the
-explicit queue profiles. The repository `nextflow.config` supplies the standard
-reference root, containers, and pipeline parameters. `nf-run NAME` supplies the per-run
-`/biojobs/nextflow/NAME/work` directory. Repeating the same name resumes the
-existing run; do not create a new random run name for every retry.
-
-Build the Kallisto SIFs once, before the reference. The ARM64 SIF must be built
-on PAM; the x86_64 SIF must be built on TOD (Intel and AMD are both x86_64).
-The scripts are in `containers/kallisto/` and each takes one argument: its
-destination directory. From a controller, submit them to the matching worker
-partition; do not build the ARM64 image on `ctra`.
-
-After both SIFs exist under `/ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/`,
-install the architecture-selecting Kallisto launcher once:
-
-```bash
-install -D -m 0755 containers/kallisto/kallisto-wrapper.sh \
-  /ref/tools/rnapipeline/v1.7.0/kallisto/0.51.1/bin/kallisto
-```
-
-Then run the reference workflow. The shared checkout is maintained at
-`/biojobs/pipelines/RNApipeline` on the `tod-nf` branch. `nf-run` runs the
-coordinator on `ctra`; the workflow downloads and validates one homogeneous Ensembl release, then sends
-the independent sequence, variant, Kallisto, GTF, and STAR tasks to Slurm in
-parallel. Each task publishes its own completed files to the staging directory.
-The final task only validates the files and renames the completed staging
-directory into place:
-
-```bash
-source "$HOME/IAC/infra/scripts/shell-setup"
-nf-run rnapipeline-buildref-v107 \
-  /biojobs/pipelines/RNApipeline/PrePostScripts/ref_build.nf \
-  -profile pam_cpu
-```
-
-The reference workflow never creates SIFs and never invokes Apptainer directly
-from a shell helper. The Kallisto launcher selects the SIF after Slurm assigns
-the worker; the site Nextflow config supplies the `/ref` binding.
-The same reference can therefore be built on PAM or TOD and used on both
-architectures.
-
-Use `-profile pam_cpu` for PAM CPU work, `-profile pam_gpu` for PAM GPU work,
-or `-profile burst` after enabling infrastructure mode `burst`. Resume the same run name
-after a failed task; do not create a new name for each retry.
-
-For a normal pipeline run, choose a meaningful stable name and add the project
-config after the site defaults:
-
-```bash
-nf-run RUN-NAME /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
-  -profile pam_cpu
-```
-
-This publishes to `s3://process/rnapipeline/RUN-NAME`. Add
-`--outputdir results` when durable output should stay in the run's local
-`results/` directory instead.
-
-### TOD/PAM S3 test run
-
-Use one stable `nf-run` name per analysis. The run directory is
-`/biojobs/nextflow/RUN-NAME`; its `metadata/samples.csv` is the input sheet,
-`work/` is resumable Nextflow state, and `logs/` contains the engine log and
-reports. The FASTQs may remain in S3; do not copy them to `/biojobs`.
-
-For paired-end files named `SAMPLE_R1.fastq.gz` and `SAMPLE_R2.fastq.gz`, use:
-
-```csv
-ID_Sample,Project,suffix1,suffix2
-BCPEVP0625_R001,rna-prelimtest,_R1,_R2
-BCPRNA0625_R038,rna-prelimtest,_R1,_R2
-BCPRNA0625_R056,rna-prelimtest,_R1,_R2
-```
-
-Then launch from a controller:
-
-```bash
-RUN_NAME=rna-prelimtest
-RUN_DIR=/biojobs/nextflow/$RUN_NAME
-mkdir -p "$RUN_DIR/metadata"
-# Create $RUN_DIR/metadata/samples.csv with the sheet above.
-
-nf-run "$RUN_NAME" /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
-  -profile pam_cpu \
-  --sampleInputDir s3://sandbox/Fastq_tests \
-  --csvSample "$RUN_DIR/metadata/samples.csv"
-```
-
-The profile is explicit. Add `-profile burst` only when infrastructure mode
-`burst` is active. The pipeline publishes durable results to
-`s3://process/rnapipeline/rna-prelimtest`; the same run's logs, metadata, and
-resumable work remain under `/biojobs/nextflow/rna-prelimtest`.
-
-Use `-profile burst` only while the infrastructure is in `burst` mode.
-If optional AMD64-only tools such as VEP, DeepVariant, or the BioContainers
-bcftools step are enabled, use burst mode. Their `amd64` process labels route
-those tasks to TOD while compatible tasks may still use PAM. Architecture is
-selected by process labels and containers, not by a user-facing profile.
-
-The build uses the configured Kallisto runtime for the worker architecture and
-requires all Ensembl inputs to use the same release. `--force` is only for an
-intentional replacement; a normal retry uses the same run name without it.
-The staging directory is owned by the stable `nf-run` name, so a different
-run cannot accidentally overwrite an active build.
+     * Get a Known-variants file: You can retrieve it from Ensembl Database.
+This step requires 32Go RAM, so it is advised to generate once for the same genome, however you can generate it using the pipeline also by changing parameter in the config files (nextflow.config and nextflowGCP.config)=> explained in the __setting up__ setp.
 
 ## 3. Setting up  ##
 The pipeline can be executed on a local computer, on a Slurm cluster (like the IFB core) or on Google Cloud Life Science platform \
@@ -207,44 +167,44 @@ For a local execution, modify the local.config file and for Google Cloud executi
     * ```params.single_end``` = true if single-end data, = false if paired-end data
     * ```params.FeatureCountStrand``` = 2 for Smarter Library Kit (you can get this information using salmon)
     * ```params.kallistoStrand``` = "--rf-stranded" for Smarter Library Kit (you can get this information using salmon)
-  * Tools selection : 
-    * ```params.star``` = true , by default, but if you don't want to execute STAR put false for this parameter 
-    * ```params.fastq``` = true , by default, but if you don't want to execute Fastqc put false for this parameter 
-    * ```params.multiqc``` = true , by default, but if you don't want to execute Multiqc put false for this parameter 
-    * ```params.kallisto``` = true , by default, but if you don't want to execute Mallisto put false for this parameter 
-    * ```params.fcounts``` = true , by default, but if you don't want to execute FeatueCpounts put false for this parameter 
-    * ```params.gatk4``` = true , by default, but if you don't want to execute GATK4 put false for this parameter 
-    * ```params.samtools_depth``` = true , by default, but if you don't want to execute Samtools depth put false for this parameter 
+  * Tools selection :
+    * ```params.star``` = true , by default, but if you don't want to execute STAR put false for this parameter
+    * ```params.fastq``` = true , by default, but if you don't want to execute Fastqc put false for this parameter
+    * ```params.multiqc``` = true , by default, but if you don't want to execute Multiqc put false for this parameter
+    * ```params.kallisto``` = true , by default, but if you don't want to execute Mallisto put false for this parameter
+    * ```params.fcounts``` = true , by default, but if you don't want to execute FeatueCpounts put false for this parameter
+    * ```params.gatk4``` = true , by default, but if you don't want to execute GATK4 put false for this parameter
+    * ```params.samtools_depth``` = true , by default, but if you don't want to execute Samtools depth put false for this parameter
     * ```params.no_multimapped``` = true , by default, filter multimapped read in Samtools depth command
-    * ```params.mpileup``` = true , by default, but if you don't want to execute Mpileup put false for this parameter 
-    * ```params.vep``` = true , by default, but if you don't want to execute VEP put false for this parameter 
+    * ```params.mpileup``` = true , by default, but if you don't want to execute Mpileup put false for this parameter
+    * ```params.vep``` = true , by default, but if you don't want to execute VEP put false for this parameter
   * Reference paths :
-    * On TOD/PAM, the standard configuration derives the reference from `--ensembl_release`: 107 uses `/ref/ensembl_v107_GRCh38` and its implicit `reference_manifest.json`.
-    * To use another release, pass the same `--ensembl_release` value used to build the reference.
-    * Set `params.ref = "no_ref"` only for the legacy workflow mode that builds indexes inside the mapping pipeline.
+    * ```params.ref= ```"/PATH/to/ensembl_v105_GRCh38_p13" -> specify the path to the directory that  contains all the reference data for the pipeline execution) (for a local execution (generated using red_build.sh) in __Data preparation step__
+    * But if you want to include the indexes  generation in the pipeline you have to specify the parameter like this ```params.ref = ``` "no_ref"
+    * ```params.vep_cache``` = "/PATH/to/ensembl_v105_GRCh38_p13/VEP"
  * optional parameters : The following parameters are for STAR aligner and Kallisto you can specify the values you want or keep the default ones (available on the config file)
- * STAR 
+ * STAR
    * ```params.alignIntronMax = ```val
-   * ```params.alignMatesGapMax=``` val  
-   * ```params.limitOutSJcollapsed``` =val  
+   * ```params.alignMatesGapMax=``` val
+   * ```params.limitOutSJcollapsed``` =val
    * ```params.limitSjdbInsertNsj``` =val
    * ```params.outFilterMultimapNmax``` =val
-   * ```params.winAnchorMultimapNmax``` =val  
+   * ```params.winAnchorMultimapNmax``` =val
    * ```params.alignSJoverhangMin``` =val
-   * ```params.alignSJDBoverhangMin``` =val  
+   * ```params.alignSJDBoverhangMin``` =val
    * ```paramsalignIntronMin``` =val
    * ```params.outFilterMatchNminOverLread``` =val
    * ```params.outFilterScoreMinOverLread``` = val
-   * ```params.outFilterMismatchNmax``` = val  
-   * ```params.outFilterMismatchNoverLmax``` = val  
- * Kallisto 
+   * ```params.outFilterMismatchNmax``` = val
+   * ```params.outFilterMismatchNoverLmax``` = val
+ * Kallisto
    * ```params.bootstrap``` = 100
    The following two parameters are only needed for single-end data
-   * ```params.read_len``` = 120 
-   * ```params.read_sd``` =20 
+   * ```params.read_len``` = 120
+   * ```params.read_sd``` =20
 
 
-## 4. Local Pipeline execution 
+## 4. Local Pipeline execution
 For the execution setup, go to your working directory :
 
 * a) In local or in Google Cloud: \
@@ -263,8 +223,8 @@ For the execution setup, go to your working directory :
   RNAPIPE_DIR="/path/to/RNApipeline/"
 
   ### Don't touch variables below this line
-  nextflow -c $CONFIG run $RNAPIPE_DIR/fullPairedEnd.nf \
-      -with-report report_$PROJECTID.html -resume \ 
+  nextflow -c $CONFIG run $RNAPIPE_DIR/RNApipeline.nf -entry Main\
+      -with-report report_$PROJECTID.html -resume \
       --csvSample $SAMPLE_CSV \
       --ref $REF \
       --sampleInputDir $INPUT_FQ_DIR \
@@ -273,7 +233,7 @@ For the execution setup, go to your working directory :
       --runNumber $PROJECTID \
       --outputdir $REZ_DIR \
       --bed $BED
-``` 
+```
 
 * b) In a slurm cluster (like IFB): \
 Copy the runIFBjob.sh example in the repository and modify the user parameters (see above)
@@ -282,10 +242,10 @@ Copy the runIFBjob.sh example in the repository and modify the user parameters (
 
   # modify runIFBjob.sh
   sbatch runIFBjob.sh
-``` 
+```
 
 ## 5. Google Cloud pipeline execution ##
-This step requires : 
+This step requires :
   * Install Google Cloud SDK
   * Create a project on Google Cloud Life Science
   * Create a Bucket for your project
@@ -294,9 +254,9 @@ For more information about the previous steps, please check the Google Cloud Doc
 To execute the pipeline, please follow these instructions:
   1. Log in to Google Cloud
   2. ```Export GOOGLE_APPLICATION_CREDENTIALS=${PWD}/KEY_FILENAME.json (activate the json  key)``` (activation of the json key on youre work_directory)
-  3. Copy all your fastq files and the directory generated by the reference workflow using the following command: gsutil cp -r dir1/dir2 gs://my-bucket.
-  
-   d) Modify the machines' capacities in the selected Google Cloud config (CPUs, RAM, disk, container) (if you want)
+  3. Copy all your fastq files and the directory generated by the ref_build.sh  using the following command: gsutil cp -r dir1/dir2 gs://my-bucket.
+
+   d) Modify the machines' capacities on the netflowGCP.config (CPUs, RAM, Disk, container) (if you want)
   ``` withName: doSTAR{ \
         cpus = 16 \
         container = 'genehetx/genehetx-rnaseq:latest' \
@@ -304,8 +264,8 @@ To execute the pipeline, please follow these instructions:
         disk = 1.TB \
     }
  ```
-   e) Specify the name of  your Project, and the region where your data will be stored 
-   ``` 
+   e) Specify the name of  your Project, and the region where your data will be stored
+   ```
   google { \
     project = 'Project_name' \
     zone = 'europe-west4-a' \
@@ -315,7 +275,7 @@ To execute the pipeline, please follow these instructions:
 ```
  5. Pipeline Execution :
  * a) Single-end data : \
- ```nextflow run simpleSingleEnd.nf -c ../configExamples/GoogleCloud.config  -w /path/to/your/workdir  -with-report [file name]```
+ ```nextflow run single_end.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```
  You can specify the name of your pipeline report [file name]
  * b) Paired end data: \
- ```nextflow run fullPairedEnd.nf -c ../configExamples/GoogleCloud.config  -w /path/to/your/workdir  -with-report [file name]```
+ ```nextflow run paired_end_pipe.nf -c ../nextflowGCP.config  -w /path/to/your/workdir  -with-report [file name]```

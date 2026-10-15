@@ -1,66 +1,41 @@
-FROM ubuntu:22.04
-MAINTAINER REMY NICOLLE  <remy.nicolle@inserm.fr>
-ARG TARGETARCH
-ARG NEXTFLOW_VERSION=24.04.4
-### Install jdk8
-RUN apt-get update && \
- 	apt-get install --yes openjdk-8-jre-headless \
-	openjdk-17-jre-headless \
-	unzip libfindbin-libs-perl default-jre \
-	wget \
-	python3 \
-	python3-dev \
-	python3-pip \
-	rna-star \
-	subread \
-	samtools \
-	kallisto \
-  curl \
-	&& 	pip3 install "multiqc==1.12" \
-	&& case "${TARGETARCH}" in amd64) JAVA_ARCH=amd64 ;; arm64) JAVA_ARCH=arm64 ;; *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; esac \
-	&& update-alternatives --set java "/usr/lib/jvm/java-17-openjdk-${JAVA_ARCH}/bin/java" \
-	&& curl -fL "https://github.com/nextflow-io/nextflow/releases/download/v${NEXTFLOW_VERSION}/nextflow" \
-	    -o /usr/local/bin/nextflow \
-	&& chmod 0755 /usr/local/bin/nextflow \
-	&& 	mkdir /data
+# Native ARM64 and x86_64 builds, with the same versions on both platforms.
+FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007 AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ninja-build autoconf automake libhdf5-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt
+RUN curl -fL --retry 3 https://github.com/pachterlab/kallisto/archive/refs/tags/v0.51.0.tar.gz -o kallisto.tar.gz \
+    && echo 'efeb0191c1a6a0d6de69111fb66f4bda51ff31fb40c513280f072bd44556f80d  kallisto.tar.gz' | sha256sum -c - \
+    && tar -xzf kallisto.tar.gz \
+    && cd kallisto-0.51.0/ext/htslib && autoheader && autoconf \
+    && cd ../.. \
+    && sed -i 's/-mno-avx2//g' ext/bifrost/CMakeLists.txt \
+    && cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release -DUSE_HDF5=ON \
+         -DCOMPILATION_ARCH=OFF -DENABLE_AVX2=OFF \
+    && cmake --build build --target bifrost --parallel 4 \
+    && cmake --build build --parallel 4
+RUN curl -fL --retry 3 https://github.com/ShiLab-Bioinformatics/subread/archive/refs/tags/2.0.2.tar.gz -o subread.tar.gz \
+    && echo '02a54526cc77265e2c805382a8b4fdb20402b496c3d0b5726aed82ea0427ff10  subread.tar.gz' | sha256sum -c - \
+    && tar -xzf subread.tar.gz \
+    && sed -i 's/-mtune=core2 //g' subread-2.0.2/src/Makefile.Linux \
+    && make -C subread-2.0.2/src -f Makefile.Linux -j4 featureCounts
+RUN curl -fL --retry 3 https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.12.1.zip -o fastqc.zip \
+    && echo '5f4dba8780231a25a6b8e11ab2c238601920c9704caa5458d9de559575d58aa7  fastqc.zip' | sha256sum -c - \
+    && unzip -q fastqc.zip && chmod +x FastQC/fastqc
 
-
-RUN case "${TARGETARCH}" in \
-      amd64) GCLOUD_ARCH=x86_64 ;; \
-      arm64) GCLOUD_ARCH=arm ;; \
-      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-  && curl -fL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-${GCLOUD_ARCH}.tar.gz" \
-       -o /tmp/google-cloud-cli.tar.gz \
-  && tar -xf /tmp/google-cloud-cli.tar.gz \
-  && ./google-cloud-sdk/install.sh -q   --rc-path /root/.bashrc
-
-###INSTALL FASTQC
-ENV SA=Europe/Paris
-
-ENV FASTQC_URL=https://www.bioinformatics.babraham.ac.uk/projects/fastqc
-ARG DEBIAN_FRONTEND=noninteractive
-
-
-WORKDIR /usr/local
-RUN curl -fL --retry 3 \
-    "${FASTQC_URL}/fastqc_v0.11.9.zip" \
-    -o /tmp/fastqc_v0.11.9.zip
-RUN unzip /tmp/fastqc_v0.11.9.zip && sed -i 's/Xmx250m/Xmx2048m/' FastQC/fastqc && chmod 755 FastQC/fastqc
-ENV PATH=/usr/local/FastQC/:$PATH
-
-
-
+FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007
+COPY --from=build /opt/kallisto-0.51.0/build/src/kallisto /usr/local/bin/kallisto
+COPY --from=build /opt/subread-2.0.2/src/featureCounts /usr/local/bin/featureCounts
+COPY --from=build /opt/FastQC /usr/local/FastQC
+RUN apt-get update && apt-get install -y --no-install-recommends libhdf5-103-1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir multiqc==1.25.1 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
+# A successful build verifies the binaries, not just the manifest architecture.
+RUN STAR --version | grep -Fx '2.7.10a' \
+    && kallisto version | grep -F 'version 0.51.0' \
+    && featureCounts -v 2>&1 | grep -F 'v2.0.2' \
+    && fastqc --version | grep -F 'v0.12.1' \
+    && multiqc --version | grep -F 'version 1.25.1' \
+    && samtools --version | head -1 | grep -Fx 'samtools 1.13'
+LABEL org.opencontainers.image.version="1.7.1"
 WORKDIR /data
-###install picard tools
-RUN wget -O picard.jar https://github.com/broadinstitute/picard/releases/download/2.26.2/picard.jar \
-   && wget  https://github.com/broadinstitute/gatk/releases/download/4.2.5.0/gatk-4.2.5.0.zip  \
-   && unzip gatk-4.2.5.0.zip \
-   && sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
-
-# And clean up
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
-
-
-# docker build --rm . -t genehetx/genehetx-rnaseq:latest
-# docker push genehetx/genehetx-rnaseq:latest
