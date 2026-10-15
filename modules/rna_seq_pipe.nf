@@ -104,7 +104,7 @@ process samtools_index {
 
 	script:
 	"""
-	samtools index -b ${bamFile} -o "${bamFile}.bai"
+	samtools index -b ${bamFile} "${bamFile}.bai"
 	"""
 }
 

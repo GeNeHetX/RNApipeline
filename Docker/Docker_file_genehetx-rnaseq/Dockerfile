@@ -23,6 +23,14 @@ RUN curl -fL --retry 3 https://www.bioinformatics.babraham.ac.uk/projects/fastqc
     && echo '5f4dba8780231a25a6b8e11ab2c238601920c9704caa5458d9de559575d58aa7  fastqc.zip' | sha256sum -c - \
     && unzip -q fastqc.zip && chmod +x FastQC/fastqc
 
+FROM build AS bcftools_build
+RUN apt-get update && apt-get install -y --no-install-recommends libbz2-dev liblzma-dev libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -fL --retry 3 https://github.com/samtools/bcftools/releases/download/1.21/bcftools-1.21.tar.bz2 -o bcftools.tar.bz2 \
+    && echo '528a4cc1d3555368db75a700b22a3c95da893fd1827f6d304716dfd45ea4e282  bcftools.tar.bz2' | sha256sum -c - \
+    && tar -xjf bcftools.tar.bz2 && cd bcftools-1.21 \
+    && ./configure --prefix=/opt/bcftools && make -j4 && make install
+
 FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007
 COPY --from=build /opt/kallisto-0.51.0/build/src/kallisto /usr/local/bin/kallisto
 COPY --from=build /opt/subread-2.0.2/src/featureCounts /usr/local/bin/featureCounts
@@ -31,11 +39,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends libhdf5-103-1 \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir multiqc==1.25.1 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
 # A successful build verifies the binaries, not just the manifest architecture.
+COPY --from=bcftools_build /opt/bcftools/bin/bcftools /usr/local/bin/bcftools
 RUN STAR --version | grep -Fx '2.7.10a' \
     && kallisto version | grep -F 'version 0.51.0' \
     && featureCounts -v 2>&1 | grep -F 'v2.0.2' \
     && fastqc --version | grep -F 'v0.12.1' \
     && multiqc --version | grep -F 'version 1.25.1' \
-    && samtools --version | head -1 | grep -Fx 'samtools 1.13'
+    && samtools --version | head -1 | grep -Fx 'samtools 1.13' \
+    && bcftools --version | head -1 | grep -Fx 'bcftools 1.21' \
+    && java -jar /data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar --version 2>&1 | grep -F 'GATK) v4.2.5.0' \
+    && java -jar /data/picard.jar SortSam --version 2>&1 | grep -Fx 'Version:2.26.2'
 LABEL org.opencontainers.image.version="1.8.0"
 WORKDIR /data

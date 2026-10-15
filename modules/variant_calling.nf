@@ -2,7 +2,6 @@ nextflow.enable.dsl=2
 
 process gatk_vc {
 	publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	//container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -95,7 +94,6 @@ process gatk_vc {
 
 process SortingSam {
 	// publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -123,7 +121,6 @@ process SortingSam {
 
 process AddOrReplaceReadGroups {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -152,7 +149,6 @@ process AddOrReplaceReadGroups {
 
 process MarkDuplicates {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -177,7 +173,6 @@ process MarkDuplicates {
 
 process SplitNCigar {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -201,7 +196,6 @@ process SplitNCigar {
 
 process BaseRecalibrator {
 	publishDir "${params.outputdir}/GATK4_output/recal_data_table", mode: 'copy', pattern: "*.recal.data.table"
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -228,7 +222,6 @@ process BaseRecalibrator {
 
 process ApplyBQSR {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile), path(data_table)
@@ -255,7 +248,6 @@ process ApplyBQSR {
 
 process BedToIntervalList {
 	//publishDir "${params.outputdir}/GATK4_output", mode: 'copy'
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	path ref_data
@@ -281,7 +273,6 @@ process BedToIntervalList {
 
 process HaplotypeCaller {
 	publishDir "${params.outputdir}/GATK4_output/", mode: 'copy', pattern: "*.vcf"
-	container 'genehetx/genehetx-rnaseq:v1.6.0'
 
 	input :
 	tuple val(sample), path(bamfile)
@@ -312,9 +303,7 @@ process HaplotypeCaller {
 }
 
 process Vep {
-	label 'amd64'
 	publishDir "${params.outputdir}/Vep_output", mode: 'copy', pattern: "*_annot.vcf.gz"
-	//container 'quay.io/biocontainers/ensembl-vep:113.2--pl5321h2a3209d_0'
 
 	input:
 	tuple val(sample), path(vcf)
@@ -338,6 +327,7 @@ process Vep {
 		--fasta $ref_data/ref.fa \
 		--offline \
 		--cache \
+		--cache_version ${params.ensembl_release} \
 		--dir_cache ${cache} \
 		--sift p,s,b \
 		--variant_class \

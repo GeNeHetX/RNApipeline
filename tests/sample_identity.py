@@ -50,23 +50,14 @@ elif name=='fastqc':
 elif name=='multiqc':
     write('multiqc_report.html','QC'); Path('multiqc_data').mkdir(); write('multiqc_data/data.txt','QC')
 elif name=='samtools':
-    if a[0]=='index': write(opt('-o'),marker(opt('-b')))
+    if a[0]=='index': write(a[-1],marker(opt('-b')))
     elif a[0]=='faidx': write(a[1]+'.fai','index')
     else: write(opt('-o'),marker(next(x for x in a if x.endswith('.bam'))))
-elif name=='mosdepth':
-    prefix,bam=a[-2:]; sample=marker(bam)
-    assert prefix==sample+'_coverage' and marker(bam+'.bai')==sample
-    with gzip.open(prefix+'.per-base.bed.gz','wt') as f: f.write(sample+'\t0\t100\t5\n')
-elif name=='bedtools': print(sys.stdin.read(),end='')
-elif name=='run_deepvariant':
-    opts=dict(x[2:].split('=',1) for x in a if x.startswith('--') and '=' in x)
-    sample=marker(opts['reads']); assert marker(opts['regions'])==sample
-    assert Path(opts['output_vcf']).name==sample+'.output.vcf.gz'
-    with gzip.open(opts['output_vcf'],'wt') as f: f.write(sample+'\n')
 elif name=='bcftools':
     if a[0]=='mpileup': print(marker(next(x for x in a if x.endswith('.bam'))))
     else: write(opt('-o'),marker(a[1]))
 elif name=='vep':
+    assert opt('--cache_version')=='107'
     sample=marker(opt('-i')); assert Path(opt('-o')).name.startswith(sample+'_')
     write(opt('-o'),sample)
 elif name=='bgzip':
@@ -87,16 +78,13 @@ else: raise AssertionError(name)
 '''
 (BIN / 'fake').write_text(FAKE)
 (BIN / 'fake').chmod(0o755)
-for name in ['STAR','featureCounts','kallisto','fastqc','multiqc','samtools','mosdepth',
-             'bedtools','run_deepvariant','bcftools','vep','bgzip','java','wget']:
+for name in ['STAR','featureCounts','kallisto','fastqc','multiqc','samtools',
+             'bcftools','vep','bgzip','java','wget']:
     (BIN / name).symlink_to('fake')
 REF = RUN / 'ensembl_v107_GRCh38'
 REF.mkdir()
 for name in ['ref.gtf','ref.fa','ref.ExonsOnly.bed','kallisto_index']:
     (REF / name).write_text('reference\n')
-MODEL = RUN / 'model'
-MODEL.mkdir()
-(MODEL / 'model.ckpt').write_text('model')
 READS = RUN / 'reads'
 READS.mkdir()
 SAMPLES = [f'S{i}' for i in range(1,6)]
@@ -152,9 +140,8 @@ try:
     single=RUN/'single.txt'
     single.write_text(''.join(f'{s} {s}_R1.fastq.gz - {READS}\n' for s in SAMPLES))
     run('single',['--sampleList',str(single),'--single_end','true'])
-    run('variants',['--sampleList',str(SHEET),'--deepvariant','true','--mpileup','true',
-        '--gatk4','true','--vep','true','--samtools_depth','true','--bed',str(REF/'ref.ExonsOnly.bed'),
-        '--modelckptdeepar',str(MODEL)])
+    run('variants',['--sampleList',str(SHEET),'--mpileup','true',
+        '--gatk4','true','--vep','true','--samtools_depth','true','--bed',str(REF/'ref.ExonsOnly.bed')])
     run('builtref',['--sampleList',str(SHEET),'--ref','no_ref'])
     duplicate=RUN/'duplicate.txt'; duplicate.write_text(SHEET.read_text()+SHEET.read_text().splitlines()[0]+'\n')
     assert 'Duplicate sample IDs' in run('duplicate',['--sampleList',str(duplicate)],False)

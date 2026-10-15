@@ -91,10 +91,9 @@ process Write_summary {
     def steps = [star: report.run_star, fastqc: report.run_fastqc,
         fcounts: report.run_fcounts, kallisto: report.run_kallisto,
         samtools: report.run_samtools, gatk: report.run_gatk,
-        mpileup: report.run_mpileup, deepvar: report.run_deepvar,
+        mpileup: report.run_mpileup,
         vep_gatk: report.run_vep && report.run_gatk,
-        vep_mpileup: report.run_vep && report.run_mpileup,
-        vep_deepvar: report.run_vep && report.run_deepvar]
+        vep_mpileup: report.run_vep && report.run_mpileup]
     steps.findAll { step, enabled -> enabled }.each { step, enabled ->
         def actual = completed.findAll { it[0] == step }.collect { it[1] }.sort()
         if (actual != report.samples.sort(false))

@@ -67,6 +67,9 @@ Every expression step uses `genehetx/genehetx-rnaseq:1.8.0` on both architecture
 | FastQC | 0.12.1 |
 | MultiQC | 1.25.1 |
 | Samtools | 1.13 |
+| bcftools | 1.21 |
+| GATK | 4.2.5.0 |
+| Picard | 2.26.2 |
 
 The image recipe preserves the supplied expression tool versions and pins the
 shared base image. Build and publish it with Docker Hub write access:
@@ -75,9 +78,22 @@ shared base image. Build and publish it with Docker Hub write access:
 docker buildx build --platform linux/amd64,linux/arm64 --push -t genehetx/genehetx-rnaseq:1.8.0 Docker/Docker_file_genehetx-rnaseq
 ```
 
-The test disables variant calling. Existing optional DeepVariant, bcftools, and
-VEP images remain x86_64-only and use the site's `amd64` constraint when enabled.
-Their sample flow is keyed by sample ID. STAR now honors `outFilterMultimapNmax`
+The PMLM test disables variant calling by default. GATK and bcftools use the
+shared image above; VEP uses Ensembl's `release_113.2` image, also native on ARM64
+and x86_64. Image manifests are pinned by digest in `nextflow.config` so cached
+images cannot silently select an older build. GATK uses its Java fallbacks when
+Intel acceleration libraries are unavailable on ARM.
+
+To enable GATK, add `--gatk4 true`; the reference must contain `ref.fa`, its FASTA
+index and sequence dictionary, indexed `knowns_variants.vcf`, and
+`ref.ExonsOnly.bed`. To enable bcftools, add `--mpileup true --bed /path/to/regions.bed`.
+Add `--vep true` to annotate either caller. VEP uses `${ref}/VEP` unless
+`--vep_cache` is supplied, and selects the cache release with `--ensembl_release`
+(107 by default). Installing a different VEP executable does not change that
+selected annotation release. DeepVariant and its Mosdepth/Bedtools helper tasks
+have been removed.
+
+All sample flow is keyed by sample ID. STAR now honors `outFilterMultimapNmax`
 (the main-branch command accidentally used `winAnchorMultimapNmax` for both).
 
 `python3 tests/sample_identity.py` runs the real workflow with controlled fake
@@ -85,6 +101,13 @@ tools that reject mismatched samples, including out-of-order completions,
 paired/single-end input, CSV input, optional variant paths, and invalid sheets.
 The final summary checks enabled per-sample outputs from channels, rather than
 scanning asynchronously published directories.
+
+Local checks with Nextflow 26.04.6 also ran the real STAR/GATK/bcftools processes
+on five synthetic samples: both architectures returned the expected sample IDs,
+called alleles, and genotypes. VEP returned identical annotation records for 132
+variants using Ensembl's small release-84 test cache. These used native ARM and
+emulated x86 Docker runs; production reference data and IAC Slurm/Apptainer runs
+still need validation on the target infrastructure.
 
 ## 0. Pre-requisites ##
 Nextflow and Docker are required \

@@ -2,8 +2,7 @@ nextflow.enable.dsl=2
 
 
 include {doSTAR; FCounts; samtools_depth; multiqc; doOnlySTARnCount; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
-include {gatk_vc; Vep as Vep_gatk; Vep as Vep_deepvariant; Vep as Vep_mpileup} from './modules/variant_calling.nf'
-include {Mosdepth; Bedtools; Deepvariant} from './modules/deepvariant.nf'
+include {gatk_vc; Vep as Vep_gatk; Vep as Vep_mpileup} from './modules/variant_calling.nf'
 include {bcftools_mpileup} from './modules/mpileup.nf'
 include {KallistoPE; Kallisto_single_end} from './modules/kallisto.nf'
 include {buildref} from './modules/index.nf'
@@ -99,7 +98,7 @@ workflow Analysis {
         samtools_depth(doSTAR.out.bam4bai, file(params.bed, checkIfExists: true))
         completed = completed.mix(samtools_depth.out.depths.map { sample, depth -> ['samtools', sample] })
     }
-    if (flag(params.mpileup) || flag(params.deepvariant)) {
+    if (flag(params.mpileup)) {
         samtools_index(doSTAR.out.bam4bai)
     }
     if (flag(params.gatk4)) {
@@ -118,18 +117,6 @@ workflow Analysis {
             completed = completed.mix(Vep_mpileup.out.annotations.map { sample, vcf -> ['vep_mpileup', sample] })
         }
     }
-    if (flag(params.deepvariant)) {
-        Mosdepth(samtools_index.out.align_files)
-        Bedtools(Mosdepth.out.coverage)
-        variant_inputs = samtools_index.out.align_files.join(Bedtools.out.regions,
-            failOnDuplicate: true, failOnMismatch: true)
-        Deepvariant(variant_inputs, reference, file(params.modelckptdeepar, checkIfExists: true))
-        completed = completed.mix(Deepvariant.out[0].map { sample, vcf -> ['deepvar', sample] })
-        if (flag(params.vep)) {
-            Vep_deepvariant(Deepvariant.out[0], reference, 'deepvariant')
-            completed = completed.mix(Vep_deepvariant.out.annotations.map { sample, vcf -> ['vep_deepvar', sample] })
-        }
-    }
     if (flag(params.multiqc)) {
         multiqc(qc_files.flatten().collect())
         completed = completed.mix(multiqc.out[0].map { report -> ['multiqc', 'ALL'] })
@@ -143,12 +130,11 @@ workflow Main {
     if (!(params.runNumber ==~ /[A-Za-z0-9][A-Za-z0-9_.-]*/)) error 'Invalid runNumber'
     reference_path = params.ref ?: (params.reference_root ? "${params.reference_root}/ensembl_v${params.ensembl_release}_GRCh38" : null)
     if (!reference_path) error 'Provide --ref, or use -c configExamples/IAC.config'
-    if (!flag(params.star) && (flag(params.fcounts) || flag(params.gatk4) || flag(params.mpileup) || flag(params.deepvariant) || flag(params.samtools_depth)))
+    if (!flag(params.star) && (flag(params.fcounts) || flag(params.gatk4) || flag(params.mpileup) || flag(params.samtools_depth)))
         error 'FeatureCounts and variant/depth workflows require --star true'
     if (flag(params.multiqc) && !flag(params.star) && !flag(params.fastqc)) error 'MultiQC needs STAR or FastQC'
-    if (flag(params.deepvariant) && !params.modelckptdeepar) error 'DeepVariant requires --modelckptdeepar'
     if ((flag(params.mpileup) || flag(params.samtools_depth)) && !params.bed) error 'Mpileup/depth requires --bed'
-    if (flag(params.vep) && !flag(params.gatk4) && !flag(params.mpileup) && !flag(params.deepvariant)) error 'VEP needs a variant caller'
+    if (flag(params.vep) && !flag(params.gatk4) && !flag(params.mpileup)) error 'VEP needs a variant caller'
     if (params.sampleList && params.csvSample) error 'Provide either --sampleList or --csvSample'
     if (!params.sampleList && !params.csvSample) error 'Provide --sampleList or --csvSample'
 
@@ -210,6 +196,7 @@ workflow Main {
         pipeline   : "RNApipeline NF - V1.7.1",
         date       : date.toString(),
         genome     : reference_path,
+        ensembl_release: params.ensembl_release,
         version    : makeVersionTag("V1.7.1", reference_path),
         sequenceID : params.runNumber,
         samples    : records.collect { it[0] },
@@ -245,7 +232,6 @@ workflow Main {
         run_gatk   : flag(params.gatk4),
         gatk_version  : params.gatk,
         run_samtools : flag(params.samtools_depth),
-        run_deepvar: flag(params.deepvariant),
         run_mpileup: flag(params.mpileup),
         region_bed : params.bed,
         pval: params.pval,
