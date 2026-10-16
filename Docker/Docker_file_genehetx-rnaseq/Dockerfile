@@ -57,5 +57,5 @@ RUN STAR --version | grep -Fx '2.7.11b' \
     && bcftools --version | head -1 | grep -Fx 'bcftools 1.21' \
     && java -jar /data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar --version 2>&1 | grep -F 'GATK) v4.2.5.0' \
     && java -jar /data/picard.jar SortSam --version 2>&1 | grep -Fx 'Version:2.26.2'
-LABEL org.opencontainers.image.version="1.8.0"
+LABEL org.opencontainers.image.version="1.8.1"
 WORKDIR /data
