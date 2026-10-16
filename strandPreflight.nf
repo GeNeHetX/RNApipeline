@@ -7,7 +7,7 @@ params.ensembl_release = 107
 params.ref = null
 params.reference_root = null
 params.outputdir = System.getenv('NF_RUN_RESULTS_DIR') ?: 'results'
-params.salmon_container = 'combinelab/salmon:2.8.0@sha256:accc5581f515e10834d9127e67c4803e0cc713f7812b9699d54ad99b66e48742'
+params.salmon_container = 'combinelab/salmon@sha256:accc5581f515e10834d9127e67c4803e0cc713f7812b9699d54ad99b66e48742'
 
 process SalmonIndex {
     container params.salmon_container
