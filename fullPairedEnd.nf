@@ -43,7 +43,7 @@ def makeVersionTag(pipeline_version, genome_path) {
 // Nextflow 26 legacy CLI parameters can be strings, including "false".
 def flag(value) { value.toString().toBoolean() }
 
-// Keep each sample ID with its files. Never pair independent sample/file queues.
+// Keep each sample ID with all of its lane files. Never pair independent queues.
 def validateSamples(rows) {
     if (!rows) error 'The sample sheet is empty'
     def ids = rows.collect { it[0] }
@@ -140,7 +140,7 @@ workflow Main {
 
     if (params.sampleList) {
         if (flag(params.check_md5)) error '--check_md5 is supported with legacy CSV input only'
-        rows = file(params.sampleList, checkIfExists: true).readLines()
+        lane_rows = file(params.sampleList, checkIfExists: true).readLines()
             .findAll { it.trim() && !it.trim().startsWith('#') }
             .collect { line ->
                 def fields = line.trim().split(/\s+/)
@@ -151,6 +151,9 @@ workflow Main {
                 def reads = flag(params.single_end) ? [read1] : [read1, read2]
                 tuple(sample, reads.collect { file("${base}/${it}", checkIfExists: base.startsWith('s3://')) })
             }
+        rows = lane_rows.groupBy { it[0] }.collect { sample, lanes ->
+            tuple(sample, lanes.collectMany { it[1] })
+        }
         samples_ch = Channel.fromList(validateSamples(rows))
     } else {
         if (!params.sampleInputDir) error 'CSV input requires --sampleInputDir'
@@ -193,11 +196,11 @@ workflow Main {
     def date = new java.util.Date()
     summary_ch = samples_ch.toList().map { records ->
       [
-        pipeline   : "RNApipeline NF - V1.7.1",
+        pipeline   : "RNApipeline NF - V1.8.0",
         date       : date.toString(),
         genome     : reference_path,
         ensembl_release: params.ensembl_release,
-        version    : makeVersionTag("V1.7.1", reference_path),
+        version    : makeVersionTag("V1.8.0", reference_path),
         sequenceID : params.runNumber,
         samples    : records.collect { it[0] },
         input_files: records.collect { [sample: it[0], fastqs: it[1].collect { f -> f.toString() }] },

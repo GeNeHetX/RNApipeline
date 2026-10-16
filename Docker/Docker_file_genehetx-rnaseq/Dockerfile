@@ -1,9 +1,16 @@
 # Native ARM64 and x86_64 builds, with the same versions on both platforms.
 FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007 AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build autoconf automake libhdf5-dev zlib1g-dev \
+    build-essential cmake ninja-build autoconf automake libhdf5-dev zlib1g-dev xxd \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt
+# Build STAR from source for each target architecture. Its upstream Makefile
+# defaults to -mavx2, so clear that x86-only flag for ARM64 and x86_64 builds.
+RUN curl -fL --retry 3 https://github.com/alexdobin/STAR/archive/2.7.11b.tar.gz -o star.tar.gz \
+    && echo '3f65305e4112bd154c7e22b333dcdaafc681f4a895048fa30fa7ae56cac408e7  star.tar.gz' | sha256sum -c - \
+    && tar -xzf star.tar.gz \
+    && make -C STAR-2.7.11b/source --jobs=4 STAR CXXFLAGS_SIMD= \
+    && install -m 0755 STAR-2.7.11b/source/STAR /usr/local/bin/STAR
 RUN curl -fL --retry 3 https://github.com/pachterlab/kallisto/archive/refs/tags/v0.51.0.tar.gz -o kallisto.tar.gz \
     && echo 'efeb0191c1a6a0d6de69111fb66f4bda51ff31fb40c513280f072bd44556f80d  kallisto.tar.gz' | sha256sum -c - \
     && tar -xzf kallisto.tar.gz \
@@ -32,6 +39,7 @@ RUN curl -fL --retry 3 https://github.com/samtools/bcftools/releases/download/1.
     && ./configure --prefix=/opt/bcftools && make -j4 && make install
 
 FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007
+COPY --from=build /usr/local/bin/STAR /usr/local/bin/STAR
 COPY --from=build /opt/kallisto-0.51.0/build/src/kallisto /usr/local/bin/kallisto
 COPY --from=build /opt/subread-2.0.2/src/featureCounts /usr/local/bin/featureCounts
 COPY --from=build /opt/FastQC /usr/local/FastQC
@@ -40,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libhdf5-103-1 \
     && pip3 install --no-cache-dir multiqc==1.25.1 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
 # A successful build verifies the binaries, not just the manifest architecture.
 COPY --from=bcftools_build /opt/bcftools/bin/bcftools /usr/local/bin/bcftools
-RUN STAR --version | grep -Fx '2.7.10a' \
+RUN STAR --version | grep -Fx '2.7.11b' \
     && kallisto version | grep -F 'version 0.51.0' \
     && featureCounts -v 2>&1 | grep -F 'v2.0.2' \
     && fastqc --version | grep -F 'v0.12.1' \

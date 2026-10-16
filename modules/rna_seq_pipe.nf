@@ -17,6 +17,13 @@ process doOnlySTARnCount {
 	path "*genecount.txt"
 
 	script:
+	def mates1 = []
+	def mates2 = []
+	fqFile.eachWithIndex { read, i ->
+	    if (params.single_end.toString().toBoolean() || i % 2 == 0) mates1 << read
+	    else mates2 << read
+	}
+	def starReadFiles = params.single_end.toString().toBoolean() ? mates1.join(',') : "${mates1.join(',')} ${mates2.join(',')}"
 	"""
 
 	for fq in $fqFile; do
@@ -30,7 +37,7 @@ process doOnlySTARnCount {
 
 
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile\
+	--readFilesIn ${starReadFiles} \
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
 	--outSAMattrRGline ID:$sample SM:$sample \
@@ -128,6 +135,13 @@ process doSTAR {
 	params.star.toString().toBoolean()
 
 	script:
+	def mates1 = []
+	def mates2 = []
+	fqFile.eachWithIndex { read, i ->
+	    if (params.single_end.toString().toBoolean() || i % 2 == 0) mates1 << read
+	    else mates2 << read
+	}
+	def starReadFiles = params.single_end.toString().toBoolean() ? mates1.join(',') : "${mates1.join(',')} ${mates2.join(',')}"
 	"""
 
 	# fastqc -t $task.cpus -q $fqFile
@@ -140,7 +154,7 @@ process doSTAR {
 	done
 
 	STAR --genomeDir $index \
-	--readFilesIn $fqFile\
+	--readFilesIn ${starReadFiles} \
 	--readFilesCommand gunzip -c \
 	--outFileNamePrefix $sample'StarOut' \
 	--outSAMattrRGline ID:$sample SM:$sample \
