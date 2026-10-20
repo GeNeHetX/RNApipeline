@@ -76,6 +76,8 @@ process Check_process{
 }
 
 process AggregateSTAR {
+	cpus 1
+	memory { params.aggregate_memory }
     publishDir "${params.outputdir}/Aggregated_output", mode: 'copy'
 
     input:

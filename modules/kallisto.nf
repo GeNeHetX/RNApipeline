@@ -2,6 +2,8 @@ nextflow.enable.dsl=2
 
 
 process KallistoPE {
+	cpus { params.max_threads }
+	memory { params.kallisto_memory }
 
 	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
 
@@ -60,6 +62,8 @@ process KallistoPE {
 }
 
 process Kallisto_single_end {
+	cpus { params.max_threads }
+	memory { params.kallisto_memory }
 	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
 
 	input:

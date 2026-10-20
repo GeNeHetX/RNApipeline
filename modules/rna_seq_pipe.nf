@@ -1,6 +1,8 @@
 nextflow.enable.dsl=2
 
 process fastqc {
+	cpus 1
+	memory { params.fastqc_memory }
 	publishDir "${params.outputdir}/Fastqc_output", mode: 'copy'
 
 	input :
@@ -24,6 +26,8 @@ process fastqc {
 }
 
 process samtools_index {
+	cpus 1
+	memory { params.default_task_memory }
 
 	input :
 	tuple val(sample), path(bamFile)
@@ -38,6 +42,8 @@ process samtools_index {
 }
 
 process doSTAR {
+	cpus { params.max_threads }
+	memory { params.max_star_memory }
 	publishDir "${params.outputdir}/UnmappedReads_output", mode: 'copy', pattern: "Unmapped_*_R{1,2}.fastq.gz"
 	publishDir "${params.outputdir}/StarLog_output", mode: 'copy', pattern: "*StarOutLog.final.out"
 
@@ -120,6 +126,8 @@ process doSTAR {
 }
 
 process FCounts {
+	cpus 1
+	memory { params.featurecounts_memory }
 	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
 
 	input:
@@ -164,6 +172,8 @@ process FCounts {
 }
 
 process multiqc {
+	cpus 1
+	memory { params.default_task_memory }
 	publishDir "${params.outputdir}/Multiqc_output", mode: 'copy'
     input:
         path files
@@ -179,6 +189,8 @@ process multiqc {
 }
 
 process samtools_depth{
+	cpus 1
+	memory { params.default_task_memory }
 
 	publishDir "${params.outputdir}/SamtoolsDepth_output", mode: 'copy', pattern: "*_depth.txt"
 

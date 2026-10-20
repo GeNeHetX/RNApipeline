@@ -303,6 +303,8 @@ process HaplotypeCaller {
 }
 
 process Vep {
+	cpus 1
+	memory { params.vep_memory }
 	publishDir "${params.outputdir}/Vep_output", mode: 'copy', pattern: "*_annot.vcf.gz"
 
 	input:

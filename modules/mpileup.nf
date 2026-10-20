@@ -1,4 +1,6 @@
 process bcftools_mpileup{
+	cpus 1
+	memory { params.mpileup_memory }
 	publishDir "${params.outputdir}/Mpileup_output/mpileup_file", mode: 'copy', pattern: '*.mpileup.gz'
 	publishDir "${params.outputdir}/Mpileup_output/bcftools_file", mode: 'copy',  pattern: '*.bcftools.vcf.gz'
 
