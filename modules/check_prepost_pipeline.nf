@@ -75,6 +75,34 @@ process Check_process{
     """
 }
 
+process AggregateSTAR {
+    publishDir "${params.outputdir}/Aggregated_output", mode: 'copy'
+
+    input:
+    path feature_counts
+    path star_logs
+    path aggregate_script
+
+    output:
+    path 'StarFCGeneCount_s*.tsv.gz', emit: gene_matrix
+    path 'StarFCExonCount_s*.tsv.gz', emit: exon_matrix
+    path 'StarMetrics_s*.tsv', emit: star_metrics
+
+    script:
+    """
+    set -euo pipefail
+    mkdir -p FeatureCounts_output StarLog_output
+    for f in ${feature_counts}; do
+     ln -s "\$(realpath -- "\$f")" "FeatureCounts_output/\$(basename -- "\$f")"
+    done
+    for f in ${star_logs}; do
+     ln -s "\$(realpath -- "\$f")" "StarLog_output/\$(basename -- "\$f")"
+    done
+
+    Rscript --vanilla ${aggregate_script} "$PWD" ${task.cpus}
+    """
+}
+
 // Wait for actual process outputs; publishDir copies can finish asynchronously.
 process Write_summary {
     publishDir "${params.outputdir}", mode: 'copy'
@@ -88,19 +116,19 @@ process Write_summary {
     path 'status_process.txt'
 
     script:
-    def steps = [star: report.run_star, fastqc: report.run_fastqc,
-        fcounts: report.run_fcounts, kallisto: report.run_kallisto,
-        samtools: report.run_samtools, gatk: report.run_gatk,
-        mpileup: report.run_mpileup,
-        vep_gatk: report.run_vep && report.run_gatk,
-        vep_mpileup: report.run_vep && report.run_mpileup]
+    def steps = [star: true, fastqc: true,
+        fcounts: true, kallisto: report.run_kallisto,
+        samtools: report.run_samtools, mpileup: report.run_variant_calling,
+        vep_mpileup: report.run_variant_calling]
     steps.findAll { step, enabled -> enabled }.each { step, enabled ->
         def actual = completed.findAll { it[0] == step }.collect { it[1] }.sort()
         if (actual != report.samples.sort(false))
             error "Incomplete or duplicate ${step} results: expected ${report.samples}, got ${actual}"
     }
-    if (report.run_multiqc && completed.count { it[0] == 'multiqc' } != 1)
+    if (completed.count { it[0] == 'multiqc' } != 1)
         error 'Missing MultiQC result'
+    if (report.run_aggregate && completed.count { it[0] == 'aggregate' } != 1)
+        error 'Missing STAR/FeatureCounts aggregation result'
     def json = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
     """
     cat > ${params.runNumber}_pipeline_summary.json <<'REPORT'

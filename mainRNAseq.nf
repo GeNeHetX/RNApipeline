@@ -1,22 +1,21 @@
 nextflow.enable.dsl=2
 
 
-include {doSTAR; FCounts; samtools_depth; multiqc; doOnlySTARnCount; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
-include {gatk_vc; Vep as Vep_gatk; Vep as Vep_mpileup} from './modules/variant_calling.nf'
+include {doSTAR; FCounts; samtools_depth; multiqc; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
+include {Vep as Vep_mpileup} from './modules/variant_calling.nf'
 include {bcftools_mpileup} from './modules/mpileup.nf'
 include {KallistoPE; Kallisto_single_end} from './modules/kallisto.nf'
-include {buildref} from './modules/index.nf'
-include {Create_md5; Verify_md5; Check_samples; Write_summary} from './modules/check_prepost_pipeline.nf'
+include {Create_md5; Verify_md5; Check_samples; AggregateSTAR; Write_summary} from './modules/check_prepost_pipeline.nf'
 
 
 // Fonction utilitaire pour formater dynamiquement la version du pipeline
 def makeVersionTag(pipeline_version, genome_path) {
     if (!genome_path) {
-        return "RNAv${pipeline_version.replaceAll(/^V/, '').replaceAll(/\\.0$/, '')}_customRef"
+        return "RNAv${pipeline_version.replaceAll(/^V/, '')}_customRef"
     }
 
-    // Nettoyage de la version du pipeline -> "RNAv1.7.0" devient "RNAv1.7"
-    def versionTag = "RNAv${pipeline_version.replaceAll(/^V/, '').replaceAll(/\\.0$/, '')}"
+    // Keep the full semantic pipeline version in the run metadata.
+    def versionTag = "RNAv${pipeline_version.replaceAll(/^V/, '')}"
 
     // Extraction du nom de base du dossier du génome
     def genomeBase = genome_path.tokenize('/')[-1] ?: genome_path
@@ -60,29 +59,27 @@ workflow Analysis {
     reference_path
 
     main:
-    if (reference_path == 'no_ref') {
-        buildref(params.fasta_ref, params.GTF, params.cdna, params.known_vcf)
-        reference = buildref.out
-    } else {
-        reference = file(reference_path, checkIfExists: true)
-    }
+    reference = file(reference_path, checkIfExists: true)
 
     completed = Channel.empty()
-    qc_files = Channel.empty()
-    if (flag(params.fastqc)) {
-        fastqc(samples_ch)
-        completed = completed.mix(fastqc.out.reports.map { sample, files -> ['fastqc', sample] })
-        qc_files = qc_files.mix(fastqc.out.reports.map { sample, files -> files })
-    }
-    if (flag(params.star)) {
-        doSTAR(reference, samples_ch)
-        completed = completed.mix(doSTAR.out.bam4bai.map { sample, bam -> ['star', sample] })
-        qc_files = qc_files.mix(doSTAR.out[1])
-    }
-    if (flag(params.fcounts)) {
-        FCounts(doSTAR.out.bam4bai, reference, flag(params.single_end) ? '' : '-p')
-        completed = completed.mix(FCounts.out.counts.map { sample, exons, genes -> ['fcounts', sample] })
-        qc_files = qc_files.mix(FCounts.out.summaries)
+    fastqc(samples_ch)
+    completed = completed.mix(fastqc.out.reports.map { sample, files -> ['fastqc', sample] })
+    qc_files = fastqc.out.reports.map { sample, files -> files }
+
+    doSTAR(reference, samples_ch)
+    completed = completed.mix(doSTAR.out.bam4bai.map { sample, bam -> ['star', sample] })
+    qc_files = qc_files.mix(doSTAR.out[1])
+
+    FCounts(doSTAR.out.bam4bai, reference, flag(params.single_end) ? '' : '-p --countReadPairs')
+    completed = completed.mix(FCounts.out.counts.map { sample, exons, genes -> ['fcounts', sample] })
+    qc_files = qc_files.mix(FCounts.out.summaries)
+
+    bed_file = params.bed ?: "${reference_path}/ref.ExonsOnly.bed"
+    if (flag(params.aggregate)) {
+        feature_count_files = FCounts.out.counts.flatMap { sample, exons, genes -> [exons, genes] }.collect()
+        star_log_files = doSTAR.out[1].collect()
+        AggregateSTAR(feature_count_files, star_log_files, file("${params.scriptDir}/aggregSTAR.R", checkIfExists: true))
+        completed = completed.mix(AggregateSTAR.out.gene_matrix.map { file -> ['aggregate', 'ALL'] })
     }
     if (flag(params.kallisto)) {
         if (flag(params.single_end)) {
@@ -95,32 +92,19 @@ workflow Analysis {
         completed = completed.mix(quant.map { sample, abundance, info -> ['kallisto', sample] })
     }
     if (flag(params.samtools_depth)) {
-        samtools_depth(doSTAR.out.bam4bai, file(params.bed, checkIfExists: true))
+        samtools_depth(doSTAR.out.bam4bai, file(bed_file, checkIfExists: true))
         completed = completed.mix(samtools_depth.out.depths.map { sample, depth -> ['samtools', sample] })
     }
-    if (flag(params.mpileup)) {
+    if (flag(params.variant_calling)) {
         samtools_index(doSTAR.out.bam4bai)
-    }
-    if (flag(params.gatk4)) {
-        gatk_vc(doSTAR.out.bam4bai, reference)
-        completed = completed.mix(gatk_vc.out.vc_file.map { sample, vcf -> ['gatk', sample] })
-        if (flag(params.vep)) {
-            Vep_gatk(gatk_vc.out.vc_file, reference, 'gatk4')
-            completed = completed.mix(Vep_gatk.out.annotations.map { sample, vcf -> ['vep_gatk', sample] })
-        }
-    }
-    if (flag(params.mpileup)) {
-        bcftools_mpileup(samtools_index.out.align_files, reference, file(params.bed, checkIfExists: true))
+        file("${reference_path}/VEP", checkIfExists: true)
+        bcftools_mpileup(samtools_index.out.align_files, reference, file(bed_file, checkIfExists: true))
         completed = completed.mix(bcftools_mpileup.out.vc_file.map { sample, vcf -> ['mpileup', sample] })
-        if (flag(params.vep)) {
-            Vep_mpileup(bcftools_mpileup.out.vc_file, reference, 'mpileup')
-            completed = completed.mix(Vep_mpileup.out.annotations.map { sample, vcf -> ['vep_mpileup', sample] })
-        }
+        Vep_mpileup(bcftools_mpileup.out.vc_file, reference, 'mpileup')
+        completed = completed.mix(Vep_mpileup.out.annotations.map { sample, vcf -> ['vep_mpileup', sample] })
     }
-    if (flag(params.multiqc)) {
-        multiqc(qc_files.flatten().collect())
-        completed = completed.mix(multiqc.out[0].map { report -> ['multiqc', 'ALL'] })
-    }
+    multiqc(qc_files.flatten().collect())
+    completed = completed.mix(multiqc.out[0].map { report -> ['multiqc', 'ALL'] })
 
     emit:
     done = completed
@@ -129,12 +113,13 @@ workflow Analysis {
 workflow Main {
     if (!(params.runNumber ==~ /[A-Za-z0-9][A-Za-z0-9_.-]*/)) error 'Invalid runNumber'
     reference_path = params.ref ?: (params.reference_root ? "${params.reference_root}/ensembl_v${params.ensembl_release}_GRCh38" : null)
-    if (!reference_path) error 'Provide --ref, or use -c configExamples/IAC.config'
-    if (!flag(params.star) && (flag(params.fcounts) || flag(params.gatk4) || flag(params.mpileup) || flag(params.samtools_depth)))
-        error 'FeatureCounts and variant/depth workflows require --star true'
-    if (flag(params.multiqc) && !flag(params.star) && !flag(params.fastqc)) error 'MultiQC needs STAR or FastQC'
-    if ((flag(params.mpileup) || flag(params.samtools_depth)) && !params.bed) error 'Mpileup/depth requires --bed'
-    if (flag(params.vep) && !flag(params.gatk4) && !flag(params.mpileup)) error 'VEP needs a variant caller'
+    if (params.ref?.toString() == 'no_ref') error '`--ref no_ref` is not supported; build a reference with buildReference.nf, then provide its directory'
+    if (!reference_path) error 'A prebuilt reference is required: set --ref or configure params.reference_root'
+    [star: params.star, fastqc: params.fastqc, fcounts: params.fcounts, multiqc: params.multiqc].each { step, value ->
+        if (value != null && !flag(value)) error "${step} is always on in mainRNAseq.nf; remove params.${step} = false"
+    }
+    if (params.mpileup != null || params.vep != null)
+        error 'Use params.variant_calling to enable the complete bcftools and VEP workflow'
     if (params.sampleList && params.csvSample) error 'Provide either --sampleList or --csvSample'
     if (!params.sampleList && !params.csvSample) error 'Provide --sampleList or --csvSample'
 
@@ -196,11 +181,11 @@ workflow Main {
     def date = new java.util.Date()
     summary_ch = samples_ch.toList().map { records ->
       [
-        pipeline   : "RNApipeline NF - V1.8.0",
+        pipeline   : "RNApipeline NF - V1.9.0",
         date       : date.toString(),
         genome     : reference_path,
         ensembl_release: params.ensembl_release,
-        version    : makeVersionTag("V1.8.0", reference_path),
+        version    : makeVersionTag("V1.9.0", reference_path),
         sequenceID : params.runNumber,
         samples    : records.collect { it[0] },
         input_files: records.collect { [sample: it[0], fastqs: it[1].collect { f -> f.toString() }] },
@@ -209,7 +194,7 @@ workflow Main {
         scriptDir  : params.scriptDir,
         routine    : flag(params.routine),
         single_end : flag(params.single_end),
-        run_star   : flag(params.star),
+        run_star   : true,
         alignIntronMax : params.alignIntronMax,
         alignMatesGapMax  : params.alignMatesGapMax,
         limitOutSJcollapsed : params.limitOutSJcollapsed,
@@ -224,21 +209,25 @@ workflow Main {
         outFilterMismatchNmax : params.outFilterMismatchNmax,
         outFilterMismatchNoverLmax  : params.outFilterMismatchNoverLmax,
         limitBAMsortRAM : params.limitBAMsortRAM,
-        run_multiqc   : flag(params.multiqc),
-        run_fastqc : flag(params.fastqc),
-        run_fcounts: flag(params.fcounts),
+        run_multiqc   : true,
+        run_fastqc : true,
+        run_fcounts: true,
+        run_aggregate: flag(params.aggregate),
         featureCountStrand  : params.FeatureCountStrand,
+        featureCountOptions : flag(params.single_end) ? '-O' : '-p --countReadPairs -O',
         run_kallisto: flag(params.kallisto),
         kallistoStrand  : params.kallistoStrand,
         read_len : params.read_len,
         read_sd : params.read_sd,
-        run_gatk   : flag(params.gatk4),
-        gatk_version  : params.gatk,
         run_samtools : flag(params.samtools_depth),
-        run_mpileup: flag(params.mpileup),
-        region_bed : params.bed,
-        pval: params.pval,
-        run_vep    : flag(params.vep),
+        run_variant_calling: flag(params.variant_calling),
+        run_mpileup: flag(params.variant_calling),
+        bcftools_caller: '-m -v',
+        region_bed : (flag(params.variant_calling) || flag(params.samtools_depth))
+            ? (params.bed ?: "${reference_path}/ref.ExonsOnly.bed") : null,
+        bcftools_prior: params.bcftools_prior,
+        run_vep    : flag(params.variant_calling),
+        vep_cache_version: params.vep_cache_version,
         containers : params.containers
       ]
     }

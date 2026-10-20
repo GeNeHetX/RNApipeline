@@ -1,8 +1,8 @@
 # RNApipeline
 
-RNApipeline is a Nextflow workflow for RNA-seq quality control, STAR alignment,
-gene/exon counts, transcript quantification, and MultiQC reporting. Variant
-calling and annotation are optional.
+RNApipeline 1.9.0 runs FastQC, STAR, FeatureCounts, and MultiQC for every cohort.
+Kallisto, bcftools-to-VEP variant analysis, and gene/exon matrix aggregation
+can each be enabled from the cohort config.
 
 ## What you need
 
@@ -40,6 +40,9 @@ params.single_end = false
 params.FeatureCountStrand = 2
 params.kallistoStrand = ' --rf-stranded '
 params.ensembl_release = 107
+params.kallisto = true
+params.variant_calling = false
+params.aggregate = false
 ```
 
 For inward paired-end reads or single-end reads, Salmon's `ISF`/`SF` evidence
@@ -60,8 +63,51 @@ build, and 36 GB for STAR. Override these for one run by adding
 `params.max_threads` or `params.max_star_memory` to the cohort config.
 The STAR BAM sort cap defaults to 30 GB; if you lower STAR memory below that,
 lower `params.limitBAMsortRAM` in the same config as well.
-For a non-IAC run, set `params.ref` to the reference directory in the cohort
-config.
+`mainRNAseq.nf` requires a prepared reference passed with `--ref`. It does not
+download or build a reference during mapping. A separate
+[`buildReference.nf`](buildReference.nf) pipeline downloads the FASTA, GTF,
+cDNA, known-variant VCF, and VEP cache, then builds the STAR, Kallisto, FASTA,
+exon-region, and VCF indexes. It writes a new reference directory under
+`/ref` by default; the person running it needs write access there. GATK is used
+only by reference preparation to index the known-variant VCF.
+
+The default VEP cache release is `113`, separate from the Ensembl annotation
+release used by STAR and FeatureCounts (default `107`). A reference used for
+variant analysis must contain `ref.ExonsOnly.bed` and the matching cache under
+`VEP/`. The reference builder downloads both for human GRCh38; custom species or
+assemblies require matching input URLs and VEP settings.
+
+To build a new reference, choose a release and a destination name that does
+not already exist. The account running this command needs write access to
+`/ref`; ask the reference maintainer to run it if you do not have that access.
+For example, to build Ensembl 108:
+
+```bash
+nf-run reference-ensembl-v108 /biojobs/pipelines/RNApipeline/buildReference.nf \
+  -profile pam_cpu \
+  --ensembl_release 108 \
+  --reference_build_root /ref \
+  --reference_name ensembl_v108_GRCh38
+```
+
+The builder stops if `/ref/ensembl_v108_GRCh38` already exists. Use the new
+directory with `mainRNAseq.nf` only after the builder completes successfully.
+
+Paired-end FeatureCounts runs use `-p --countReadPairs -O`: each fragment is
+counted as a pair, and a fragment overlapping multiple genes or exons is counted
+for each overlap. This can make counts across features non-exclusive. The
+pipeline does not set `-B`, so counting does not require both mates to map.
+
+`params.variant_calling = true` enables the complete variant path: bcftools
+mpileup, bcftools' multiallelic caller (`-m -v`), then VEP annotation. It needs
+the reference BED and VEP cache described above. The caller's prior defaults to
+`1.1e-3`; set `params.bcftools_prior` to override it. Do not toggle mpileup or
+VEP separately.
+
+Set `params.kallisto = false` to skip transcript quantification. Set
+`params.aggregate = true` to write combined gene and exon count matrices plus
+STAR metrics under `results/Aggregated_output/`; it defaults to `false`.
+FastQC, STAR, FeatureCounts, and MultiQC always run.
 
 ## Run
 
@@ -69,7 +115,7 @@ Pass absolute paths for the pipeline, sample sheet, and cohort config. These
 files may live in any directory you can access:
 
 ```bash
-nf-run cohortA /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
+nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
   -profile pam_cpu \
   -c /home/you/cohortA/analysis.config \
   --sampleList /home/you/cohortA/samples.txt
@@ -92,7 +138,7 @@ run name without `-resume` is refused. To resume after an interruption, repeat
 the same command and add `-resume`:
 
 ```bash
-nf-run cohortA /biojobs/pipelines/RNApipeline/fullPairedEnd.nf \
+nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
   -profile pam_cpu -resume \
   -c /home/you/cohortA/analysis.config \
   --sampleList /home/you/cohortA/samples.txt

@@ -12,13 +12,10 @@ process bcftools_mpileup{
 	path "*.bcftools.vcf.gz"
 	tuple val(sample), path("*.bcftools.vcf.gz"), emit:vc_file
 
-	when:
-	params.mpileup.toString().toBoolean()
-
 	script:
 	"""
 	bcftools mpileup -f ${ref}"/ref.fa" ${bam} -R ${regions_bed} -d 500 >  "${sample}.mpileup"
-	bcftools call  "${sample}.mpileup" -cv -p ${params.pval} -Ov -o "${sample}.bcftools.vcf"
+	bcftools call  "${sample}.mpileup" -m -v -P ${params.bcftools_prior} -Ov -o "${sample}.bcftools.vcf"
 
 	gzip "${sample}.mpileup"
 	gzip "${sample}.bcftools.vcf"

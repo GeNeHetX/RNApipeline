@@ -314,11 +314,8 @@ process Vep {
 	tuple val(sample), path("*_annot.vcf.gz"), emit: annotations
 	//path "*_annot.tab"
 
-	when:
-	params.vep.toString().toBoolean()
-
 	script:
-    def cache = params.vep_cache ?: "${ref_data}/VEP"
+	def cache = "${ref_data}/VEP"
 	"""
 	vep -i $vcf \
 		--format vcf \
@@ -327,7 +324,7 @@ process Vep {
 		--fasta $ref_data/ref.fa \
 		--offline \
 		--cache \
-		--cache_version ${params.ensembl_release} \
+		--cache_version ${params.vep_cache_version} \
 		--dir_cache ${cache} \
 		--sift p,s,b \
 		--variant_class \

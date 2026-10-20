@@ -43,7 +43,8 @@ COPY --from=build /usr/local/bin/STAR /usr/local/bin/STAR
 COPY --from=build /opt/kallisto-0.51.0/build/src/kallisto /usr/local/bin/kallisto
 COPY --from=build /opt/subread-2.0.2/src/featureCounts /usr/local/bin/featureCounts
 COPY --from=build /opt/FastQC /usr/local/FastQC
-RUN apt-get update && apt-get install -y --no-install-recommends libhdf5-103-1 \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libhdf5-103-1 r-base-core \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir multiqc==1.25.1 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
 # A successful build verifies the binaries, not just the manifest architecture.
@@ -56,6 +57,8 @@ RUN STAR --version | grep -Fx '2.7.11b' \
     && samtools --version | head -1 | grep -Fx 'samtools 1.13' \
     && bcftools --version | head -1 | grep -Fx 'bcftools 1.21' \
     && java -jar /data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar --version 2>&1 | grep -F 'GATK) v4.2.5.0' \
-    && java -jar /data/picard.jar SortSam --version 2>&1 | grep -Fx 'Version:2.26.2'
-LABEL org.opencontainers.image.version="1.8.1"
+    && java -jar /data/picard.jar SortSam --version 2>&1 | grep -Fx 'Version:2.26.2' \
+    && Rscript --version \
+    && Rscript --vanilla -e 'library(parallel)'
+LABEL org.opencontainers.image.version="1.9.0"
 WORKDIR /data

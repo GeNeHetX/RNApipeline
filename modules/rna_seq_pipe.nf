@@ -1,77 +1,5 @@
 nextflow.enable.dsl=2
 
-process doOnlySTARnCount {
-
-	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
-
-	input :
-	path index
-	tuple val(sample), file(fqFile)
-
-
-	output:
-	// path "${sample}StarOutAligned.sortedByCoord.out.bam"
-	path "*StarOutLog.final.out"
-	path "*_fastqc.{zip,html}"
-	path "*exonscount.txt"
-	path "*genecount.txt"
-
-	script:
-	def mates1 = []
-	def mates2 = []
-	fqFile.eachWithIndex { read, i ->
-	    if (params.single_end.toString().toBoolean() || i % 2 == 0) mates1 << read
-	    else mates2 << read
-	}
-	def starReadFiles = params.single_end.toString().toBoolean() ? mates1.join(',') : "${mates1.join(',')} ${mates2.join(',')}"
-	"""
-
-	for fq in $fqFile; do
-	    if [ ! -r "\$fq" ] || [ ! -s "\$fq" ]; then
-	        echo "FASTQ missing, empty or unreadable on \$(hostname): \$fq" >&2
-	        exit 1
-	    fi
-	done
-
-	fastqc -t $task.cpus -q $fqFile
-
-
-	STAR --genomeDir $index \
-	--readFilesIn ${starReadFiles} \
-	--readFilesCommand gunzip -c \
-	--outFileNamePrefix $sample'StarOut' \
-	--outSAMattrRGline ID:$sample SM:$sample \
-	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf\
-	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
-	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
-	--alignIntronMax $params.alignIntronMax \
-	--alignMatesGapMax $params.alignMatesGapMax \
-	--limitOutSJcollapsed $params.limitOutSJcollapsed \
-	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
-	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin\
-	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
-	--alignIntronMin $params.alignIntronMin \
-	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
-	--outFilterMismatchNmax $params.outFilterMismatchNmax \
-	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax
-
-
-
-	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'exonscount.txt' -f -t 'exon' -g 'exon_id' $sample'StarOutAligned.sortedByCoord.out.bam'
-
-	featureCounts -T $task.cpus -F GTF -a  $index/ref.gtf $params.featureCountP -s $params.FeatureCountStrand -O -o $sample'genecount.txt' -t 'exon' -g 'gene_id'  $sample'StarOutAligned.sortedByCoord.out.bam'
-
-
-
-
-	"""
-
-
-}
-
 process fastqc {
 	publishDir "${params.outputdir}/Fastqc_output", mode: 'copy'
 
@@ -80,9 +8,6 @@ process fastqc {
 
 	output:
 	tuple val(sample), path('*_fastqc.{zip,html}'), emit: reports
-
-	when:
-	params.fastqc.toString().toBoolean()
 
 	script:
 	"""
@@ -106,9 +31,6 @@ process samtools_index {
 	output:
 	tuple val(sample), path(bamFile), path ("${bamFile}.bai"), emit : align_files
 
-	when:
-	params.star.toString().toBoolean()
-
 	script:
 	"""
 	samtools index -b ${bamFile} "${bamFile}.bai"
@@ -131,9 +53,6 @@ process doSTAR {
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
 
-	when:
-	params.star.toString().toBoolean()
-
 	script:
 	def mates1 = []
 	def mates2 = []
@@ -143,6 +62,7 @@ process doSTAR {
 	}
 	def starReadFiles = params.single_end.toString().toBoolean() ? mates1.join(',') : "${mates1.join(',')} ${mates2.join(',')}"
 	"""
+	set -euo pipefail
 
 	# fastqc -t $task.cpus -q $fqFile
 
@@ -153,29 +73,33 @@ process doSTAR {
 	    fi
 	done
 
-	STAR --genomeDir $index \
-	--readFilesIn ${starReadFiles} \
-	--readFilesCommand gunzip -c \
-	--outFileNamePrefix $sample'StarOut' \
-	--outSAMattrRGline ID:$sample SM:$sample \
-	--runThreadN $task.cpus \
-	--sjdbGTFfile $index/ref.gtf\
-	--twopassMode None --outFilterType BySJout  --seedSearchStartLmax 12 \
-	--alignEndsType Local --outSAMtype BAM SortedByCoordinate \
-	--alignIntronMax $params.alignIntronMax \
-	--alignMatesGapMax $params.alignMatesGapMax \
-	--limitOutSJcollapsed $params.limitOutSJcollapsed \
-	--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
-	--outFilterMultimapNmax $params.outFilterMultimapNmax --winAnchorMultimapNmax $params.winAnchorMultimapNmax \
-	--alignSJoverhangMin $params.alignSJoverhangMin\
-	--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
-	--alignIntronMin $params.alignIntronMin \
-	--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
-	--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread\
-	--outFilterMismatchNmax $params.outFilterMismatchNmax \
-	--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
-	--limitBAMsortRAM $params.limitBAMsortRAM \
-	--outReadsUnmapped Fastx
+		STAR \
+		--genomeDir $index \
+		--readFilesIn ${starReadFiles} \
+		--readFilesCommand gunzip -c \
+		--outFileNamePrefix ${sample}StarOut \
+		--runThreadN $task.cpus \
+		--sjdbGTFfile ${index}/ref.gtf \
+		--twopassMode None \
+		--outFilterType BySJout \
+		--seedSearchStartLmax 12 \
+		--alignEndsType Local \
+		--outSAMtype BAM SortedByCoordinate \
+		--alignIntronMax $params.alignIntronMax \
+		--alignMatesGapMax $params.alignMatesGapMax \
+		--limitOutSJcollapsed $params.limitOutSJcollapsed \
+		--limitSjdbInsertNsj $params.limitSjdbInsertNsj \
+		--outFilterMultimapNmax $params.outFilterMultimapNmax \
+		--winAnchorMultimapNmax $params.winAnchorMultimapNmax \
+		--alignSJoverhangMin $params.alignSJoverhangMin \
+		--alignSJDBoverhangMin $params.alignSJDBoverhangMin \
+		--alignIntronMin $params.alignIntronMin \
+		--outFilterMatchNminOverLread $params.outFilterMatchNminOverLread \
+		--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
+		--outFilterMismatchNmax $params.outFilterMismatchNmax \
+		--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
+		--limitBAMsortRAM $params.limitBAMsortRAM \
+		--outReadsUnmapped Fastx
 
 	# Compress and rename Unmapped read fastqs
 	if [ -s "${sample}StarOutUnmapped.out.mate1" ]; then
@@ -183,12 +107,14 @@ process doSTAR {
 	else
 		echo "⚠️ No unmapped reads for mate1 (file empty or missing)"
 	fi
+	rm -f -- "${sample}StarOutUnmapped.out.mate1"
 
 	if [ -s "${sample}StarOutUnmapped.out.mate2" ]; then
 		gzip -c "${sample}StarOutUnmapped.out.mate2" > "Unmapped_${sample}_R2.fastq.gz"
 	else
 		echo "ℹ️ Single-end mode or no unmapped mate2"
 	fi
+	rm -f -- "${sample}StarOutUnmapped.out.mate2"
 
 	"""
 }
@@ -199,7 +125,7 @@ process FCounts {
 	input:
 	tuple val(sample), path(bam)
 	path index
-	val featureCountP // -p if paired-end
+	val featureCountP // -p --countReadPairs for paired-end fragments
 
 
 	output:

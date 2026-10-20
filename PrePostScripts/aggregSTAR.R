@@ -18,16 +18,10 @@ args = commandArgs(trailingOnly=TRUE)
 # rezdir=args[1]
 # outdir=args[3]
 # prefix=args[4]
-THREADS=12
-
-# datdir="/home/cpignolet2/bobgenomic/01_RawRNASeq/IPMN_MICRODISSEC/05_Process/RNAv1.5_Ensemblv107"
-# refgtf="/home/cpignolet2/bobgenomic/00_REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
-
-datdir="/home/bioinfo/wbobgenomic/01_RawRNASeq/IMPULSE/05_Process/RNAv1.5_Ensemblv107"
-refgtf="/home/bioinfo/wbobgenomic/00_REFDATA/ensembl_v107_GRCh38/geneInfo.tab"
-
+if (length(args) < 1) stop("Usage: aggregSTAR.R results_directory [threads]")
 datdir=args[1]
-refgtf=args[2]
+THREADS=if (length(args) >= 2) as.integer(args[2]) else 1L
+if (is.na(THREADS) || THREADS < 1) stop("threads must be a positive integer")
 outdir=datdir
 
 rezdirs= file.path(datdir, c("FeatureCounts_output", "StarLog_output"))
@@ -41,7 +35,9 @@ allstarlog=grep("StarOutLog.final.out$", allfiles, value = TRUE)
 a=basename(sub("exonscount.txt$","",allexoncounts))
 b=basename(sub("genecount.txt$","",allgenecounts))
 d=basename(sub("StarOutLog.final.out$","",allstarlog))
-if(!setequal(a,b) | !setequal(b,d) ){stop("OMG NOT SAME SAMPLES")}
+if (!length(a) || !length(b) || !length(d)) stop("Expected FeatureCounts and STAR outputs were not found")
+if (anyDuplicated(a) || anyDuplicated(b) || anyDuplicated(d)) stop("Duplicate sample outputs were found")
+if (!setequal(a,b) || !setequal(b,d)) stop("FeatureCounts and STAR outputs contain different samples")
 
 names(allexoncounts)=a
 names(allgenecounts)=b
@@ -54,23 +50,23 @@ library(parallel)
 
 
 
-allFCGcountsL=mclapply(allgenecounts[allsampl],function(f){
-  x=NULL
-  try({
-    x=read.delim(file.path(f),sep="\t",header=T,as.is=T,skip=1)
-    rownames(x)=x[,1]
-  })
-  x[ncol(x)]
-},mc.cores=THREADS)
+read_count_vectors <- function(files, sample_ids) {
+  counts <- mclapply(files[sample_ids], function(f) {
+    x <- read.delim(f, sep="\t", header=TRUE, as.is=TRUE, skip=1, check.names=FALSE)
+    if (ncol(x) < 2 || nrow(x) == 0) stop(paste("Invalid FeatureCounts file:", f))
+    ids <- x[[1]]
+    if (anyDuplicated(ids)) stop(paste("Duplicate feature IDs in:", f))
+    setNames(x[[ncol(x)]], ids)
+  }, mc.cores=THREADS)
+  names(counts) <- sample_ids
+  feature_ids <- names(counts[[1]])
+  if (any(!vapply(counts, function(x) identical(names(x), feature_ids), logical(1))))
+    stop("Feature IDs or order differ between FeatureCounts files")
+  counts
+}
 
-allFCEcountsL=mclapply(allexoncounts[allsampl],function(f){
-  x=NULL
-  try({
-    x=unique(read.delim(file.path(f),sep="\t",header=T,as.is=T,skip=1))
-    rownames(x)=x[,1]
-  })
-  x[ncol(x)]
-},mc.cores=THREADS)
+allFCGcountsL=read_count_vectors(allgenecounts, allsampl)
+allFCEcountsL=read_count_vectors(allexoncounts, allsampl)
 
 allStarLog=mclapply(allstarlog[allsampl],function(f){
   x=readLines(f)
@@ -95,20 +91,22 @@ allStarLog=mclapply(allstarlog[allsampl],function(f){
 n=length(allFCGcountsL)
 
 print("Saving FC")
-g=rownames(allFCGcountsL[[1]])
-Y=data.frame(do.call(cbind,mclapply(allFCGcountsL,function(x)x[g,1])))
+g=names(allFCGcountsL[[1]])
+Y=data.frame(do.call(cbind,lapply(allFCGcountsL, identity)), check.names=FALSE)
 dimnames(Y)=list(g,allsampl)
 # saveRDS(Y,file=file.path(outdir,paste0(prefix,sub(".tsv.gz","",fcsuffixes)[i],".rds")))
-write.table( Y, file=file.path(outdir,paste0("StarFCGeneCount_s",n,".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
-system(paste0("gzip ",file.path(outdir,paste0("StarFCGeneCount_s",n,".tsv"))))
+gene_file=file.path(outdir,paste0("StarFCGeneCount_s",n,".tsv"))
+write.table(Y, file=gene_file, quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
+if (system2("gzip", gene_file) != 0) stop("Failed to gzip gene-count matrix")
 
 
-g=rownames(allFCEcountsL[[1]])
-Y=data.frame(do.call(cbind,mclapply(allFCEcountsL,function(x)x[g,1])))
+g=names(allFCEcountsL[[1]])
+Y=data.frame(do.call(cbind,lapply(allFCEcountsL, identity)), check.names=FALSE)
 dimnames(Y)=list(g,allsampl)
 # saveRDS(Y,file=file.path(outdir,paste0(prefix,sub(".tsv.gz","",fcsuffixes)[i],".rds")))
-write.table( Y, file=file.path(outdir,paste0("StarFCExonCount_s",n,".tsv")),quote=F,row.names=T,col.names=T, sep="\t")
-system(paste0("gzip ",file.path(outdir,paste0("StarFCExonCount_s",n,".tsv"))))
+exon_file=file.path(outdir,paste0("StarFCExonCount_s",n,".tsv"))
+write.table(Y, file=exon_file, quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
+if (system2("gzip", exon_file) != 0) stop("Failed to gzip exon-count matrix")
 
 
 
