@@ -99,7 +99,7 @@ process AggregateSTAR {
      ln -s "\$(realpath -- "\$f")" "StarLog_output/\$(basename -- "\$f")"
     done
 
-    Rscript --vanilla ${aggregate_script} "$PWD" ${task.cpus}
+    Rscript --vanilla ${aggregate_script} "\$PWD" ${task.cpus}
     """
 }
 
