@@ -1,13 +1,64 @@
 # RNApipeline
 
+## Start here
+
+For a normal cohort run, use **`mainRNAseq.nf`** and the included cohort config.
+Build a reference only when the required release is not already available; that
+uses **`buildReference.nf`** and its separate example config.
+
+```bash
+nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
+  -profile pam_cpu \
+  -c /biojobs/pipelines/RNApipeline/configExamples/cohort.config \
+  --sampleList /home/you/cohortA/samples.txt \
+  --ref /ref/ensembl_v107_GRCh38_rna2
+```
+
+To build that reference once:
+
+```bash
+nf-run reference-ensembl-v107 /biojobs/pipelines/RNApipeline/buildReference.nf \
+  -profile pam_cpu \
+  -c /biojobs/pipelines/RNApipeline/configExamples/reference-build.config
+```
+
+For the example protocol, run with this config as shown. For a different
+protocol, copy it and change the strand settings. Edit the reference-build
+config if your reference destination differs.
+The examples assume the pipeline checkout is at `/biojobs/pipelines/RNApipeline`;
+replace that path if yours differs. See [outputs](OUTPUTS.md),
+[container builds](CONTAINERS.md), [validation status](VALIDATION.md) and the
+[hotspot reference files](reference/README.md) for details.
+
+## Where to change things
+
+| Change | File or folder |
+|---|---|
+| Connect or configure the standard analysis workflow | `mainRNAseq.nf` |
+| Add or change an RNA process | `modules/rna_seq_pipe.nf`; connect it in `mainRNAseq.nf` |
+| Add or change Kallisto processes | `modules/kallisto.nf`; connect them in `mainRNAseq.nf` |
+| Add or change variant processes | `modules/mpileup.nf` or `modules/variant_calling.nf`; connect them in `mainRNAseq.nf` |
+| Add or change metrics, Somalier or hotspot-output processes | `modules/sample_outputs.nf`; connect them in `mainRNAseq.nf` |
+| Add or change input checks or the run summary | `modules/check_prepost_pipeline.nf`; connect them in `mainRNAseq.nf` |
+| Add or change a reference-build process | `modules/index.nf`, then connect it in `buildReference.nf` |
+| Edit helper code called by a process | `scripts/` for analysis helpers; `reference/` for reference-build helpers |
+| Change a container | `Docker/` |
+| Select cohort or reference-build parameters | `configExamples/` |
+
+`buildReference.nf` is the runnable reference workflow. The scripts beside it
+under `reference/` are helper code used by its processes; they are not separate
+pipelines. `scripts/` contains helpers used by the analysis and optional
+strandedness preflight.
+
+The pipeline folders are `Docker/`, `configExamples/`, `modules/`, `reference/`
+and `scripts/`. Maintainer checks are kept separately under the hidden `.github/`.
+
 RNApipeline 2.0 keeps the 1.9 sample sheet, FASTQ lane grouping, STAR alignment
 and FeatureCounts counting behavior. It adds per-sample QC metrics and Somalier
 fingerprints. Kallisto remains optional; hotspot calling remains opt-in. The
 sample-first metrics can be combined outside the pipeline for project analysis.
 
 This development version is on `pipeline-2.0`; `tod-nf` remains the 1.9 baseline.
-See [completed validation and remaining deployment work](docs/validation.md),
-[the output and metric schema](docs/outputs.md) and [the hotspot catalogue](reference/hotspots/README.md).
 
 ## What you need
 
@@ -36,20 +87,9 @@ sampleB sampleB_L001_R1.fastq.gz sampleB_L001_R2.fastq.gz /data/cohortA
 
 ## Cohort analysis config
 
-Create a small Nextflow config beside the sample sheet. This example is for a
-reverse-stranded paired-end library; select values for the actual library
-protocol before running:
-
-```groovy
-params.single_end = false
-params.FeatureCountStrand = 2
-params.kallistoStrand = ' --rf-stranded '
-params.ensembl_release = 107
-params.kallisto = true
-params.variant_calling = false
-params.somalier = true
-params.bcftools_max_depth = 100000
-```
+[`configExamples/cohort.config`](configExamples/cohort.config) is a
+reverse-stranded paired-end example. Copy it for your cohort and set the
+strand options to match the library protocol before running.
 
 For inward paired-end reads or single-end reads, Salmon's `ISF`/`SF` evidence
 corresponds to Kallisto `--fr-stranded` and FeatureCounts `-s 1`; `ISR`/`SR`
@@ -89,7 +129,7 @@ Somalier sites and GI hotspot targets are separate assets. The builder normalize
 Somalier chromosome names to the FASTA and checks every REF base. Hotspot records
 that cannot be resolved are retained in `hotspots/mapping_audit.tsv`; they do not
 become reassuring no-call rows. This is a research catalogue, not a clinically
-validated panel. See its [scope and evidence limitations](reference/hotspots/README.md).
+validated panel. See its [scope and evidence limitations](reference/README.md).
 
 The builder publishes a new directory only after all indexes and checks succeed.
 Choose a name that does not already exist. On IAC:
@@ -106,7 +146,7 @@ The account needs write access to `/ref`. For another human GRCh38 release,
 change `--ensembl_release` and the destination name. The selected release must
 have matching assets available on Ensembl; it also selects the VEP image tag.
 The pipeline and matching VEP images must be installed/published by the maintainer
-before running on compute workers (see [container builds](docs/containers.md)).
+before running on compute workers (see [container builds](CONTAINERS.md)).
 
 The index uses `sjdbOverhang=100`, preserving the existing protocol: STAR defines
 this as the maximum read length minus one for splice-junction database sequences
@@ -138,36 +178,29 @@ Somalier publishes one fingerprint per sample; cohort relatedness is left for
 project analysis. Its [RNA sites panel](https://github.com/brentp/somalier/releases)
 uses expressed sites and still needs informativeness assessment on your GI data.
 
-The 2.0 workflow has no cohort-aggregation or standalone raw-depth task. Raw tool
-reports and intermediates remain in Nextflow work for troubleshooting/resume.
-Keep the work area until you deliberately clean it after a successful run.
+The 2.0 workflow has no cohort aggregation or standalone raw-depth task. Raw tool
+reports and intermediates remain in the Nextflow task cache for troubleshooting
+and resume. With `nf-run` on IAC, the launcher stores it under the run directory
+shown below. For direct Nextflow runs, the default cache is outside the checkout
+under `~/.cache/nextflow/RNApipeline`; set `NF_RUN_WORK_DIR` to use other storage.
+Retain the cache while you may resume.
 
-## Run
-
-Pass absolute paths for the pipeline, sample sheet, and cohort config. These
-files may live in any directory you can access:
-
-```bash
-nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
-  -profile pam_cpu \
-  -c /home/you/cohortA/analysis.config \
-  --sampleList /home/you/cohortA/samples.txt \
-  --ref /ref/ensembl_v107_GRCh38_rna2
-```
+## Execution and resume
 
 Choose one execution profile: `pam_cpu`, `pam_gpu`, or `burst`. Burst mode is
 available only when an administrator has enabled it. See the IAC
 [Nextflow run guide](https://wiki.genehetx.fr/compute/nf-run/) for profiles,
 input visibility on workers, and infrastructure troubleshooting.
 
-Each run name has its own directory:
+Each IAC `nf-run` name has its own directory:
 
 ```text
 /biojobs/nextflow/<run-name>/{results,logs,metadata,work}
 ```
 
 Results and logs are under `results/` and `logs/`; Nextflow's task cache is in
-`work/`. Keep `work/` to resume. The first invocation starts fresh. Reusing a
+the external `work/` directory. This is runtime data, not part of the pipeline
+checkout. Keep it to resume. The first invocation starts fresh. Reusing a
 run name without `-resume` is refused. To resume after an interruption, repeat
 the same command and add `-resume`:
 

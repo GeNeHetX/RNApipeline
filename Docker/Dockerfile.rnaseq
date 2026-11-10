@@ -42,7 +42,7 @@ RUN curl -fL --retry 3 https://github.com/samtools/bcftools/releases/download/1.
 FROM mambaorg/micromamba:2.0.5 AS somalier_build
 USER root
 ARG TARGETARCH
-COPY Docker/Docker_file_genehetx-rnaseq/somalier-*.lock /tmp/
+COPY Docker/somalier-*.lock /tmp/
 RUN micromamba create -y -p /opt/somalier --file /tmp/somalier-${TARGETARCH}.lock \
     && cp /tmp/somalier-${TARGETARCH}.lock /opt/somalier/explicit-spec.txt \
     && micromamba clean --all --yes

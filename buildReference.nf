@@ -26,7 +26,8 @@ workflow {
     DownloadReference(sources)
     buildref(DownloadReference.out.files, file(params.hotspot_catalogue, checkIfExists: true),
         params.transcript_overrides ? file(params.transcript_overrides, checkIfExists: true) : [],
-        file("${params.scriptDir}/reference_metadata.py"), file("${params.scriptDir}/hotspot_reference.py"))
-    ValidateHotspots(buildref.out.reference, file("${params.scriptDir}/hotspot_reference.py"))
-    PublishReference(buildref.out.reference, ValidateHotspots.out.validation, file("${params.scriptDir}/reference_metadata.py"))
+        file("${projectDir}/reference/reference_metadata.py"), file("${projectDir}/reference/hotspot_reference.py"))
+    ValidateHotspots(buildref.out.reference, file("${projectDir}/reference/hotspot_reference.py"))
+    PublishReference(buildref.out.reference, ValidateHotspots.out.validation,
+        file("${projectDir}/reference/reference_metadata.py"))
 }

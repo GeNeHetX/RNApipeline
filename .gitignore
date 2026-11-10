@@ -2,6 +2,7 @@ AGENTS.md
 .nextflow/
 .nextflow.log*
 work/
+# macOS Finder metadata; ignore in every folder.
 .DS_Store
 
 __pycache__/

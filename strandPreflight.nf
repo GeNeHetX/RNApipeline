@@ -97,5 +97,5 @@ workflow {
     index = SalmonIndex.out.first()
     SalmonQuant(index, Channel.fromList(samples))
     sampleDirs = SalmonQuant.out.results.map { sample, directory -> directory }.collect()
-    SalmonSummary(sampleDirs, file("${projectDir}/PrePostScripts/salmon_summary.py", checkIfExists: true))
+    SalmonSummary(sampleDirs, file("${projectDir}/scripts/salmon_summary.py", checkIfExists: true))
 }

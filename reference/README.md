@@ -2,17 +2,17 @@
 
 `catalogue.tsv` preserves the existing 193 GI entries and 46 genes, including
 all original KLF4 IPMN entries. It has no genome coordinates assigned by this
-update. `source/gi_hotspots_catalogue.tsv` is the unchanged source retrieved from
+update. `source_catalogue.tsv` is the unchanged source retrieved from
 [the project handoff](https://drive.google.com/drive/folders/15t7JZVdUC7kS1SZxPPRu7YIFqQU1uAug).
-Its SHA256 is recorded in `source/source.sha256`. The pan-cancer additions in
+Its SHA256 is recorded in `source.sha256`. The pan-cancer additions in
 Worknotes remain proposed and have not been added to this source snapshot.
 
 Prepare/audit this snapshot without a reference or reads:
 
 ```bash
-python3 PrePostScripts/prepare_catalogue.py \
-  --source reference/hotspots/source/gi_hotspots_catalogue.tsv \
-  --outdir reference/hotspots
+python3 reference/prepare_catalogue.py \
+  --source reference/source_catalogue.tsv \
+  --outdir reference
 ```
 
 The preparation checks IDs, gene-symbol syntax and agreement between protein

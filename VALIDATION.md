@@ -81,6 +81,6 @@ nextflow run buildReference.nf -with-docker \
   --reference_name ensembl_v107_GRCh38_rna2
 ```
 
-Install the images first using [the build commands](containers.md). For IAC, the
+Install the images first using [the build commands](CONTAINERS.md). For IAC, the
 README gives the equivalent `nf-run` invocation; the source checkout and site
 container settings must point to this version before invoking it.

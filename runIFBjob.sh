@@ -24,7 +24,7 @@ nextflow -c $CONFIG run $RNAPIPE_DIR/mainRNAseq.nf \
     --csvSample $SAMPLE_CSV \
     --ref $REF \
     --sampleInputDir $INPUT_FQ_DIR \
-    --scriptDir ${RNAPIPE_DIR}"/PrePostScripts/" \
+    --scriptDir ${RNAPIPE_DIR}"/scripts/" \
     --logBackupDir "." \
     --runNumber $PROJECTID \
     --outputdir $REZ_DIR \
