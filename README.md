@@ -26,9 +26,8 @@ For the example protocol, run with this config as shown. For a different
 protocol, copy it and change the strand settings. Edit the reference-build
 config if your reference destination differs.
 The examples assume the pipeline checkout is at `/biojobs/pipelines/RNApipeline`;
-replace that path if yours differs. See [outputs](OUTPUTS.md),
-[container builds](CONTAINERS.md), [validation status](VALIDATION.md) and the
-[hotspot reference files](reference/README.md) for details.
+replace that path if yours differs. See [outputs and metrics](#outputs-and-metrics),
+[container builds](CONTAINERS.md) and the [hotspot reference files](reference/README.md).
 
 ## Where to change things
 
@@ -52,6 +51,47 @@ strandedness preflight.
 
 The pipeline folders are `Docker/`, `configExamples/`, `modules/`, `reference/`
 and `scripts/`. Maintainer checks are kept separately under the hidden `.github/`.
+
+## Outputs and metrics
+
+| Path | Contents |
+|---|---|
+| `<run>_pipeline_summary.json` | Run parameters, samples/inputs, pipeline and reference identities, containers and completion checks |
+| `FeatureCounts_output/` | Per-sample `exonscount.txt` and `genecount.txt` files in the existing table formats |
+| `UnmappedReads_output/` | Optional unmapped R1/R2 FASTQs |
+| `Metrics_output/<sample>.metrics.tsv` | One normalized, project-aggregatable metrics table per sample |
+| `Kallisto_output/<sample>/abundance.tsv` | When Kallisto is enabled |
+| `Somalier_output/<sample>.somalier` | When Somalier is enabled (default) |
+| `Hotspot_output/<sample>.hotspots.tsv` | When variant calling is enabled (default off) |
+
+FastQC HTML/ZIP reports, STAR logs, FeatureCounts assignment summaries,
+Kallisto run info, BAM/BAI, BCF/VCF, VEP annotations and depth remain in the
+external Nextflow task cache. The workflow publishes no cohort matrices or
+standalone MD5, status or sample-check files.
+
+### Metrics schema
+
+Each per-sample file has one header and one row per metric, using these columns:
+
+`sample_id`, `metric_scope`, `fastq_id`, `read_role`, `metric_source`, `metric`,
+`value`, `unit`, `qc_status`.
+
+Additional lanes add FASTQ rows with the same columns. `fastq_id` is the original
+FASTQ basename; read roles and order come from the sample sheet. Sample-level
+rows have empty FASTQ/read-role fields. Values are scalar numbers or strings;
+timestamps, versions and statuses remain strings. No FASTQ quality distributions
+are retained.
+
+| Source | Collected metrics |
+|---|---|
+| FastQC, each FASTQ | Version; every module status; Basic Statistics summary fields except file name/type; minimum and mean of per-base mean quality; weighted mean per-sequence quality; minimum/maximum read lengths; maximum per-base N%; maximum base-content deviation from 25%; mean sequence GC%; maximum absolute tile quality deviation; deduplicated%; number and summed percentage of overrepresented sequences; maximum adapter%; number of reported kmers and maximum observed/expected ratio |
+| STAR | Every populated scalar field from `Log.final.out`, including mapped/unmapped/splice/chimeric counts/rates and run timing |
+| FeatureCounts | Every assignment category, count and percentage, separately for exon and gene summaries; number of gene-table rows with count > 0 |
+| Kallisto | Enabled/disabled status; `n_targets`, `n_bootstraps`, `n_processed`, `n_pseudoaligned`, `n_unique`, `p_pseudoaligned`, `p_unique`, `kallisto_version`, `index_version` when emitted by the tool |
+
+FastQC metrics retain pass/warn/fail status. STAR, FeatureCounts and Kallisto
+metrics have no invented pass/fail threshold. Metrics join by sample ID, and a
+completion check covers every input sample.
 
 RNApipeline 2.0 keeps the 1.9 sample sheet, FASTQ lane grouping, STAR alignment
 and FeatureCounts counting behavior. It adds per-sample QC metrics and Somalier

@@ -43,19 +43,4 @@ nextflow run buildReference.nf -with-docker \
 
 Allow enough work disk for downloads, indexes and the final assembled bundle.
 The final reference is staged using links and copied to its published destination only after VEP validation. A full human
-STAR build uses the configured 36 GB memory request. This is a substantial build;
-the repository's small fixture checks do not replace completing it on the target
-compute environment before production mapping.
-
-Local checks (Python needs pysam 0.23.3):
-
-```bash
-python3 .github/check_hotspot_outputs.py
-python3 .github/check_sample_identity.py
-```
-
-The workflow checks use mock tools to exercise real Nextflow scheduling, sample
-identity, output publication and all reference-builder stages. They do not
-validate biological sensitivity or a complete human reference.
-
-See [the validation record](VALIDATION.md) for the checks actually completed and the remaining full-reference/production work.
+STAR build uses the configured 36 GB memory request.
