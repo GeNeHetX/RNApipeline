@@ -1,0 +1,7 @@
+{
+  "source": "https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt",
+  "checked": "2026-11-10",
+  "sha256": "3944cdad7affce5bc2c7d63d7079d7e68762ed28ef414fc287cc0f57c4b0d78f",
+  "symbols": 46,
+  "approved": 46
+}

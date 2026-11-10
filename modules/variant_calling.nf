@@ -305,7 +305,6 @@ process HaplotypeCaller {
 process Vep {
 	cpus 1
 	memory { params.vep_memory }
-	publishDir "${params.outputdir}/Vep_output", mode: 'copy', pattern: "*_annot.vcf.gz"
 
 	input:
 	tuple val(sample), path(vcf)
@@ -319,16 +318,18 @@ process Vep {
 	script:
 	def cache = "${ref_data}/VEP"
 	"""
+	set -euo pipefail
+	vep --help | grep -E 'ensembl-vep[[:space:]]*:[[:space:]]*${params.ensembl_release}[.]'
 	vep -i $vcf \
 		--format vcf \
 		-o ${sample}_${suffix}_annot.vcf \
-		--vcf \
+		--vcf --no_stats --force_overwrite --transcript_version \
 		--fasta $ref_data/ref.fa \
 		--offline \
 		--cache \
-		--cache_version ${params.vep_cache_version} \
+		--cache_version ${params.ensembl_release} \
 		--dir_cache ${cache} \
-		--sift p,s,b \
+		--sift b \
 		--variant_class \
 		--gene_phenotype \
 		--hgvs \

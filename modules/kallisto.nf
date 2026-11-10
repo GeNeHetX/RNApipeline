@@ -5,7 +5,7 @@ process KallistoPE {
 	cpus { params.max_threads }
 	memory { params.kallisto_memory }
 
-	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
+	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy', pattern: '*/abundance.tsv'
 
 	input:
 	path idx
@@ -15,8 +15,6 @@ process KallistoPE {
 	output:
 
 
-	file "${Sample}/abundance.tsv"
-	file "${Sample}/run_info.json"
 	tuple val(Sample), path("${Sample}/abundance.tsv"), path("${Sample}/run_info.json"), emit: quant
 
 
@@ -64,7 +62,7 @@ process KallistoPE {
 process Kallisto_single_end {
 	cpus { params.max_threads }
 	memory { params.kallisto_memory }
-	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy'
+	publishDir "${params.outputdir}/Kallisto_output", mode: 'copy', pattern: '*/abundance.tsv'
 
 	input:
 	path idx
@@ -95,7 +93,7 @@ process Kallisto_single_end {
 
 	${prepareReads}
 
-	kallisto quant --single -l ${params.read_len} -s ${params.read_sd} $params.kallistoStrand \
+	kallisto quant --single -l ${params.read_len ?: params.fragment_length} -s ${params.read_sd} $params.kallistoStrand \
 		-i $idx/kallisto_index -t ${task.cpus} -o ${Sample} "${readArg}"
 	"""
 

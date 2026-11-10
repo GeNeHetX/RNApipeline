@@ -38,27 +38,39 @@ RUN curl -fL --retry 3 https://github.com/samtools/bcftools/releases/download/1.
     && tar -xjf bcftools.tar.bz2 && cd bcftools-1.21 \
     && ./configure --prefix=/opt/bcftools && make -j4 && make install
 
+# Native Somalier packages, same release on both architectures.
+FROM mambaorg/micromamba:2.0.5 AS somalier_build
+USER root
+ARG TARGETARCH
+COPY Docker/Docker_file_genehetx-rnaseq/somalier-*.lock /tmp/
+RUN micromamba create -y -p /opt/somalier --file /tmp/somalier-${TARGETARCH}.lock \
+    && cp /tmp/somalier-${TARGETARCH}.lock /opt/somalier/explicit-spec.txt \
+    && micromamba clean --all --yes
+
 FROM genehetx/genehetx-rnaseq:v1.6.1@sha256:8454e0ff2394009e84f424876128a9b19f5ab21b7bce2781032052fa8920d007
 COPY --from=build /usr/local/bin/STAR /usr/local/bin/STAR
 COPY --from=build /opt/kallisto-0.51.0/build/src/kallisto /usr/local/bin/kallisto
 COPY --from=build /opt/subread-2.0.2/src/featureCounts /usr/local/bin/featureCounts
 COPY --from=build /opt/FastQC /usr/local/FastQC
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libhdf5-103-1 r-base-core \
+        libhdf5-103-1 \
     && rm -rf /var/lib/apt/lists/* \
-    && pip3 install --no-cache-dir multiqc==1.25.1 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
+    && pip3 uninstall -y multiqc \
+    && pip3 install --no-cache-dir pysam==0.23.3 pandas==2.2.3 numpy==1.26.4 tqdm==4.67.1
+COPY --from=somalier_build /opt/somalier /opt/somalier
+RUN printf '%s\n' '#!/bin/sh' 'LD_LIBRARY_PATH=/opt/somalier/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} exec /opt/somalier/bin/somalier "$@"' > /usr/local/bin/somalier \
+    && chmod +x /usr/local/bin/somalier
 # A successful build verifies the binaries, not just the manifest architecture.
 COPY --from=bcftools_build /opt/bcftools/bin/bcftools /usr/local/bin/bcftools
 RUN STAR --version | grep -Fx '2.7.11b' \
     && kallisto version | grep -F 'version 0.51.0' \
     && featureCounts -v 2>&1 | grep -F 'v2.0.2' \
     && fastqc --version | grep -F 'v0.12.1' \
-    && multiqc --version | grep -F 'version 1.25.1' \
     && samtools --version | head -1 | grep -Fx 'samtools 1.13' \
     && bcftools --version | head -1 | grep -Fx 'bcftools 1.21' \
-    && java -jar /data/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar --version 2>&1 | grep -F 'GATK) v4.2.5.0' \
-    && java -jar /data/picard.jar SortSam --version 2>&1 | grep -Fx 'Version:2.26.2' \
-    && Rscript --version \
-    && Rscript --vanilla -e 'library(parallel)'
-LABEL org.opencontainers.image.version="1.9.0"
+    && somalier 2>&1 | grep -F '0.3.7' \
+    && python3 -c 'import pysam; assert pysam.__version__ == "0.23.3"' \
+    && ! command -v multiqc
+
+LABEL org.opencontainers.image.version="2.0.0"
 WORKDIR /data

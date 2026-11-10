@@ -1,0 +1,12 @@
+source_url	read_status	finding
+https://www.ncbi.nlm.nih.gov/clinvar/RCV000029214/	read	KRAS G12D in nevus sebaceous; supports allele identity, not the other 13 catalogue entries sharing this URL or their somatic tumour context
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10552358/	read	NFE2L2 pan-cancer study; individual allele evidence still requires per-record review
+https://pmc.ncbi.nlm.nih.gov/articles/PMC7608103/	read	508 ESCC whole genomes; individual PIK3CA alleles still require per-record review
+https://pmc.ncbi.nlm.nih.gov/articles/PMC3424497/	read	GIST resistance review; secondary source, independent primary allele review remains pending
+https://pmc.ncbi.nlm.nih.gov/articles/PMC5342476/	access_challenge	Browser challenge; no new allele verification claimed
+https://pmc.ncbi.nlm.nih.gov/articles/PMC8262510/	access_challenge	Browser challenge; original KLF4 entries preserved
+https://pmc.ncbi.nlm.nih.gov/articles/PMC7503716/	access_challenge	Browser challenge; promoter targets outside standard mature-RNA report
+https://www.ncbi.nlm.nih.gov/clinvar/RCV000017293/	unavailable	No new allele verification claimed
+https://www.ncbi.nlm.nih.gov/clinvar/variation/1319731/	access_challenge	No new allele verification claimed
+https://www.nature.com/articles/ng.2984	access_challenge	Publisher redirect inaccessible; no new allele verification claimed
+https://www.nature.com/articles/ncomms3810	access_challenge	Publisher redirect inaccessible; no new allele verification claimed

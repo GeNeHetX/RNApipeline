@@ -1,11 +1,12 @@
 nextflow.enable.dsl=2
 
 
-include {doSTAR; FCounts; samtools_depth; multiqc; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
+include {doSTAR; FCounts; samtools_index; fastqc} from './modules/rna_seq_pipe.nf'
 include {Vep as Vep_mpileup} from './modules/variant_calling.nf'
 include {bcftools_mpileup} from './modules/mpileup.nf'
+include {SampleMetrics; Somalier; HotspotReport} from './modules/sample_outputs.nf'
 include {KallistoPE; Kallisto_single_end} from './modules/kallisto.nf'
-include {Create_md5; Verify_md5; Check_samples; AggregateSTAR; Write_summary} from './modules/check_prepost_pipeline.nf'
+include {Create_md5; Verify_md5; Check_samples; Write_summary} from './modules/check_prepost_pipeline.nf'
 
 
 // Fonction utilitaire pour formater dynamiquement la version du pipeline
@@ -64,23 +65,12 @@ workflow Analysis {
     completed = Channel.empty()
     fastqc(samples_ch)
     completed = completed.mix(fastqc.out.reports.map { sample, files -> ['fastqc', sample] })
-    qc_files = fastqc.out.reports.map { sample, files -> files }
 
     doSTAR(reference, samples_ch)
     completed = completed.mix(doSTAR.out.bam4bai.map { sample, bam -> ['star', sample] })
-    qc_files = qc_files.mix(doSTAR.out[1])
-
     FCounts(doSTAR.out.bam4bai, reference, flag(params.single_end) ? '' : '-p --countReadPairs')
     completed = completed.mix(FCounts.out.counts.map { sample, exons, genes -> ['fcounts', sample] })
-    qc_files = qc_files.mix(FCounts.out.summaries)
 
-    bed_file = params.bed ?: "${reference_path}/ref.ExonsOnly.bed"
-    if (flag(params.aggregate)) {
-        feature_count_files = FCounts.out.counts.flatMap { sample, exons, genes -> [exons, genes] }.collect()
-        star_log_files = doSTAR.out[1].collect()
-        AggregateSTAR(feature_count_files, star_log_files, file("${params.scriptDir}/aggregSTAR.R", checkIfExists: true))
-        completed = completed.mix(AggregateSTAR.out.gene_matrix.map { file -> ['aggregate', 'ALL'] })
-    }
     if (flag(params.kallisto)) {
         if (flag(params.single_end)) {
             Kallisto_single_end(reference, samples_ch)
@@ -90,21 +80,41 @@ workflow Analysis {
             quant = KallistoPE.out.quant
         }
         completed = completed.mix(quant.map { sample, abundance, info -> ['kallisto', sample] })
+        quant_info = quant.map { sample, abundance, info -> tuple(sample, info) }
+    } else {
+        quant_info = samples_ch.map { sample, reads -> tuple(sample, []) }
     }
-    if (flag(params.samtools_depth)) {
-        samtools_depth(doSTAR.out.bam4bai, file(bed_file, checkIfExists: true))
-        completed = completed.mix(samtools_depth.out.depths.map { sample, depth -> ['samtools', sample] })
+    // One keyed bundle per sample, including an explicit disabled Kallisto record.
+    metrics_inputs = samples_ch.map { sample, reads -> tuple(sample, reads.collect { it.name }) }
+        .join(fastqc.out.reports, failOnDuplicate: true, failOnMismatch: true)
+        .join(doSTAR.out.logs, failOnDuplicate: true, failOnMismatch: true)
+        .join(FCounts.out.summaries, failOnDuplicate: true, failOnMismatch: true)
+        .join(FCounts.out.counts.map { sample, exons, genes -> tuple(sample, genes) }, failOnDuplicate: true, failOnMismatch: true)
+        .join(quant_info, failOnDuplicate: true, failOnMismatch: true)
+    SampleMetrics(metrics_inputs, file("${params.scriptDir}/collect_metrics.py", checkIfExists: true))
+    completed = completed.mix(SampleMetrics.out.metrics.map { sample, metrics -> ['metrics', sample] })
+
+    if (flag(params.somalier) || flag(params.variant_calling)) {
+        samtools_index(doSTAR.out.bam4bai)
+    }
+    if (flag(params.somalier)) {
+        file("${reference_path}/somalier/sites.vcf.gz", checkIfExists: true)
+        Somalier(samtools_index.out.align_files, reference)
+        completed = completed.mix(Somalier.out.fingerprints.map { sample, fp -> ['somalier', sample] })
     }
     if (flag(params.variant_calling)) {
-        samtools_index(doSTAR.out.bam4bai)
         file("${reference_path}/VEP", checkIfExists: true)
-        bcftools_mpileup(samtools_index.out.align_files, reference, file(bed_file, checkIfExists: true))
+        file("${reference_path}/hotspots/validation.json", checkIfExists: true)
+        bcftools_mpileup(samtools_index.out.align_files, reference,
+            file("${reference_path}/hotspots/targets.bed", checkIfExists: true))
         completed = completed.mix(bcftools_mpileup.out.vc_file.map { sample, vcf -> ['mpileup', sample] })
         Vep_mpileup(bcftools_mpileup.out.vc_file, reference, 'mpileup')
         completed = completed.mix(Vep_mpileup.out.annotations.map { sample, vcf -> ['vep_mpileup', sample] })
+        hotspot_inputs = Vep_mpileup.out.annotations.join(bcftools_mpileup.out.depths,
+            failOnDuplicate: true, failOnMismatch: true)
+        HotspotReport(hotspot_inputs, reference, file("${params.scriptDir}/hotspot_report.py", checkIfExists: true))
+        completed = completed.mix(HotspotReport.out.reports.map { sample, report -> ['hotspots', sample] })
     }
-    multiqc(qc_files.flatten().collect())
-    completed = completed.mix(multiqc.out[0].map { report -> ['multiqc', 'ALL'] })
 
     emit:
     done = completed
@@ -115,11 +125,22 @@ workflow Main {
     reference_path = params.ref ?: (params.reference_root ? "${params.reference_root}/ensembl_v${params.ensembl_release}_GRCh38" : null)
     if (params.ref?.toString() == 'no_ref') error '`--ref no_ref` is not supported; build a reference with buildReference.nf, then provide its directory'
     if (!reference_path) error 'A prebuilt reference is required: set --ref or configure params.reference_root'
-    [star: params.star, fastqc: params.fastqc, fcounts: params.fcounts, multiqc: params.multiqc].each { step, value ->
+    [star: params.star, fastqc: params.fastqc, fcounts: params.fcounts].each { step, value ->
         if (value != null && !flag(value)) error "${step} is always on in mainRNAseq.nf; remove params.${step} = false"
     }
     if (params.mpileup != null || params.vep != null)
         error 'Use params.variant_calling to enable the complete bcftools and VEP workflow'
+    if (!(params.bcftools_max_depth.toString() ==~ /[1-9]\d*/)) error '--bcftools_max_depth must be a positive integer'
+    if (params.vep_cache_version && params.vep_cache_version.toString() != params.ensembl_release.toString())
+        error 'VEP cache must use --ensembl_release; remove the separate --vep_cache_version override'
+    if (flag(params.aggregate) || flag(params.samtools_depth))
+        log.warn '2.0 publishes per-sample metrics and hotspot reports; aggregate/samtools_depth switches are retained for config compatibility but no longer publish cohort matrices or raw depth.'
+    reference_manifest = file("${reference_path}/reference_manifest.json")
+    reference_info = reference_manifest.exists() ? new groovy.json.JsonSlurper().parseText(reference_manifest.text) : null
+    if (reference_info && reference_info.ensembl_release.toString() != params.ensembl_release.toString())
+        error 'Reference manifest release differs from --ensembl_release'
+    if ((flag(params.somalier) || flag(params.variant_calling)) && !reference_info)
+        error 'Somalier and hotspot calling require a 2.0 reference from buildReference.nf (reference_manifest.json missing)'
     if (params.sampleList && params.csvSample) error 'Provide either --sampleList or --csvSample'
     if (!params.sampleList && !params.csvSample) error 'Provide --sampleList or --csvSample'
 
@@ -181,11 +202,11 @@ workflow Main {
     def date = new java.util.Date()
     summary_ch = samples_ch.toList().map { records ->
       [
-        pipeline   : "RNApipeline NF - V1.9.0",
+        pipeline   : "RNApipeline NF - V${params.pipeline_version}",
         date       : date.toString(),
         genome     : reference_path,
         ensembl_release: params.ensembl_release,
-        version    : makeVersionTag("V1.9.0", reference_path),
+        version    : makeVersionTag(params.pipeline_version, reference_path),
         sequenceID : params.runNumber,
         samples    : records.collect { it[0] },
         input_files: records.collect { [sample: it[0], fastqs: it[1].collect { f -> f.toString() }] },
@@ -208,26 +229,28 @@ workflow Main {
         outFilterScoreMinOverLread  : params.outFilterScoreMinOverLread,
         outFilterMismatchNmax : params.outFilterMismatchNmax,
         outFilterMismatchNoverLmax  : params.outFilterMismatchNoverLmax,
-        limitBAMsortRAM : params.limitBAMsortRAM,
-        run_multiqc   : true,
         run_fastqc : true,
         run_fcounts: true,
-        run_aggregate: flag(params.aggregate),
+        run_aggregate: false,
         featureCountStrand  : params.FeatureCountStrand,
         featureCountOptions : flag(params.single_end) ? '-O' : '-p --countReadPairs -O',
         run_kallisto: flag(params.kallisto),
         kallistoStrand  : params.kallistoStrand,
-        read_len : params.read_len,
+        fragment_length : params.read_len ?: params.fragment_length,
         read_sd : params.read_sd,
-        run_samtools : flag(params.samtools_depth),
+        run_samtools : false,
+        run_somalier : flag(params.somalier),
+        reference_manifest : reference_info,
         run_variant_calling: flag(params.variant_calling),
         run_mpileup: flag(params.variant_calling),
         bcftools_caller: '-m -v',
-        region_bed : (flag(params.variant_calling) || flag(params.samtools_depth))
-            ? (params.bed ?: "${reference_path}/ref.ExonsOnly.bed") : null,
+        region_bed : flag(params.variant_calling) ? "${reference_path}/hotspots/targets.bed" : null,
+        bcftools_max_depth: params.bcftools_max_depth,
+        variant_min_base_quality: params.variant_min_base_quality,
+        variant_min_mapping_quality: params.variant_min_mapping_quality,
         bcftools_prior: params.bcftools_prior,
         run_vep    : flag(params.variant_calling),
-        vep_cache_version: params.vep_cache_version,
+        vep_cache_version: params.ensembl_release,
         containers : params.containers
       ]
     }

@@ -1,0 +1,47 @@
+genesymbol	hgnc_id	status	name
+ACVR2A	HGNC:173	Approved	activin A receptor type 2A
+AKT1	HGNC:391	Approved	AKT serine/threonine kinase 1
+APC	HGNC:583	Approved	APC regulator of Wnt signaling pathway
+ARID1A	HGNC:11110	Approved	AT-rich interaction domain 1A
+ATM	HGNC:795	Approved	ATM serine/threonine kinase
+ATRX	HGNC:886	Approved	ATRX chromatin remodeler
+BAP1	HGNC:950	Approved	BRCA1 associated deubiquitinase 1
+BRAF	HGNC:1097	Approved	B-Raf proto-oncogene, serine/threonine kinase
+BRCA1	HGNC:1100	Approved	BRCA1 DNA repair associated
+BRCA2	HGNC:1101	Approved	BRCA2 DNA repair associated
+CDH1	HGNC:1748	Approved	cadherin 1
+CDKN2A	HGNC:1787	Approved	cyclin dependent kinase inhibitor 2A
+CTNNB1	HGNC:2514	Approved	catenin beta 1
+DAXX	HGNC:2681	Approved	death domain associated protein
+ERBB2	HGNC:3430	Approved	erb-b2 receptor tyrosine kinase 2
+ERBB3	HGNC:3431	Approved	erb-b2 receptor tyrosine kinase 3
+FBXW7	HGNC:16712	Approved	F-box and WD repeat domain containing 7
+FGFR2	HGNC:3689	Approved	fibroblast growth factor receptor 2
+FGFR3	HGNC:3690	Approved	fibroblast growth factor receptor 3
+GNAS	HGNC:4392	Approved	GNAS complex locus
+HRAS	HGNC:5173	Approved	HRas proto-oncogene, GTPase
+IDH1	HGNC:5382	Approved	isocitrate dehydrogenase (NADP(+)) 1
+IDH2	HGNC:5383	Approved	isocitrate dehydrogenase (NADP(+)) 2
+KIT	HGNC:6342	Approved	KIT proto-oncogene, receptor tyrosine kinase
+KLF4	HGNC:6348	Approved	KLF transcription factor 4
+KRAS	HGNC:6407	Approved	KRas proto-oncogene, GTPase
+MAP2K1	HGNC:6840	Approved	mitogen-activated protein kinase kinase 1
+MEN1	HGNC:7010	Approved	menin 1
+NFE2L2	HGNC:7782	Approved	NFE2 like bZIP transcription factor 2
+NRAS	HGNC:7989	Approved	NRAS proto-oncogene, GTPase
+PALB2	HGNC:26144	Approved	partner and localizer of BRCA2
+PDGFRA	HGNC:8803	Approved	platelet derived growth factor receptor alpha
+PIK3CA	HGNC:8975	Approved	phosphatidylinositol-4,5-bisphosphate 3-kinase catalytic subunit alpha
+POLD1	HGNC:9175	Approved	DNA polymerase delta 1, catalytic subunit
+POLE	HGNC:9177	Approved	DNA polymerase epsilon, catalytic subunit
+PRKACA	HGNC:9380	Approved	protein kinase cAMP-activated catalytic subunit alpha
+PRKACB	HGNC:9381	Approved	protein kinase cAMP-activated catalytic subunit beta
+RHOA	HGNC:667	Approved	ras homolog family member A
+RNF43	HGNC:18505	Approved	ring finger protein 43
+SF3B1	HGNC:10768	Approved	splicing factor 3b subunit 1
+SMAD4	HGNC:6770	Approved	SMAD family member 4
+TERT	HGNC:11730	Approved	telomerase reverse transcriptase
+TGFBR2	HGNC:11773	Approved	transforming growth factor beta receptor 2
+TP53	HGNC:11998	Approved	tumor protein p53
+U2AF1	HGNC:12453	Approved	U2 small nuclear RNA auxiliary factor 1
+YY1	HGNC:12856	Approved	YY1 transcription factor

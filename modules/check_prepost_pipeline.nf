@@ -1,7 +1,6 @@
 nextflow.enable.dsl=2
 
 process Create_md5{
-    publishDir "${params.outputdir}/Md5_output", mode: 'copy'
 
 	input:
 	path(fastqDir)
@@ -19,7 +18,6 @@ process Create_md5{
 }
 
 process Verify_md5{
-    publishDir "${params.outputdir}/Md5_output", mode: 'copy'
 
 	input:
     path(fastqDir)
@@ -41,7 +39,6 @@ process Verify_md5{
 }
 
 process Check_samples{
-    publishDir "${params.outputdir}", mode: 'copy'
 
 	input:
 	path(sampleCsv)
@@ -115,27 +112,22 @@ process Write_summary {
 
     output:
     path "${params.runNumber}_pipeline_summary.json"
-    path 'status_process.txt'
 
     script:
     def steps = [star: true, fastqc: true,
         fcounts: true, kallisto: report.run_kallisto,
         samtools: report.run_samtools, mpileup: report.run_variant_calling,
-        vep_mpileup: report.run_variant_calling]
+        vep_mpileup: report.run_variant_calling, metrics: true,
+        somalier: report.run_somalier, hotspots: report.run_variant_calling]
     steps.findAll { step, enabled -> enabled }.each { step, enabled ->
         def actual = completed.findAll { it[0] == step }.collect { it[1] }.sort()
         if (actual != report.samples.sort(false))
             error "Incomplete or duplicate ${step} results: expected ${report.samples}, got ${actual}"
     }
-    if (completed.count { it[0] == 'multiqc' } != 1)
-        error 'Missing MultiQC result'
-    if (report.run_aggregate && completed.count { it[0] == 'aggregate' } != 1)
-        error 'Missing STAR/FeatureCounts aggregation result'
     def json = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(report))
     """
     cat > ${params.runNumber}_pipeline_summary.json <<'REPORT'
 ${json}
 REPORT
-    echo OK > status_process.txt
     """
 }

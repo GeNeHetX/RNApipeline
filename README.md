@@ -1,8 +1,13 @@
 # RNApipeline
 
-RNApipeline 1.9.0 runs FastQC, STAR, FeatureCounts, and MultiQC for every cohort.
-Kallisto, bcftools-to-VEP variant analysis, and gene/exon matrix aggregation
-can each be enabled from the cohort config.
+RNApipeline 2.0 keeps the 1.9 sample sheet, FASTQ lane grouping, STAR alignment
+and FeatureCounts counting behavior. It adds per-sample QC metrics and Somalier
+fingerprints. Kallisto remains optional; hotspot calling remains opt-in.
+MultiQC and cohort matrices are replaced by metrics that can be combined later.
+
+This development version is on `pipeline-2.0`; `tod-nf` remains the 1.9 baseline.
+See [completed validation and remaining deployment work](docs/validation.md),
+[the output and metric schema](docs/outputs.md) and [the hotspot catalogue](reference/hotspots/README.md).
 
 ## What you need
 
@@ -42,7 +47,8 @@ params.kallistoStrand = ' --rf-stranded '
 params.ensembl_release = 107
 params.kallisto = true
 params.variant_calling = false
-params.aggregate = false
+params.somalier = true
+params.bcftools_max_depth = 100000
 ```
 
 For inward paired-end reads or single-end reads, Salmon's `ISF`/`SF` evidence
@@ -61,53 +67,80 @@ run output location. You do not need to copy or edit an IAC config. The IAC
 defaults are 6 threads for STAR, Kallisto, Salmon preflight, and reference-index
 build, and 36 GB for STAR. Override these for one run by adding
 `params.max_threads` or `params.max_star_memory` to the cohort config.
-The STAR BAM sort cap defaults to 30 GB; if you lower STAR memory below that,
-lower `params.limitBAMsortRAM` in the same config as well.
-`mainRNAseq.nf` requires a prepared reference passed with `--ref`. It does not
-download or build a reference during mapping. A separate
-[`buildReference.nf`](buildReference.nf) pipeline downloads the FASTA, GTF,
-cDNA, known-variant VCF, and VEP cache, then builds the STAR, Kallisto, FASTA,
-exon-region, and VCF indexes. It writes a new reference directory under
-`/ref` by default; the person running it needs write access there. GATK is used
-only by reference preparation to index the known-variant VCF.
+`mainRNAseq.nf` takes a prepared reference through `--ref` or the existing
+`reference_root`/`ensembl_release` convention. It does not build references while
+mapping reads. Build a fresh 2.0 human GRCh38 reference with
+[`buildReference.nf`](buildReference.nf); existing 1.9 bundles lack the Somalier
+panel, hotspot targets and reference manifest. To use an older reference for
+alignment/quantification only, set `params.somalier = false` and keep
+`params.variant_calling = false`.
 
-The default VEP cache release is `113`, separate from the Ensembl annotation
-release used by STAR and FeatureCounts (default `107`). A reference used for
-variant analysis must contain `ref.ExonsOnly.bed` and the matching cache under
-`VEP/`. The reference builder downloads both for human GRCh38; custom species or
-assemblies require matching input URLs and VEP settings.
+The reference builder has one release parameter: `--ensembl_release` (default
+107). It downloads that release's primary-assembly FASTA, chromosome GTF, cDNA
+and indexed VEP cache. It builds the FASTA, STAR and Kallisto indexes, prepares
+the Somalier RNA panel, maps/audits the existing hotspot catalogue and checks
+candidate consequences using same-release VEP. It records source URLs, SHA256,
+versions and STAR index settings in `reference_manifest.json`. It also retains
+the generic merged exon BED for legacy reference consumers. GATK-only known
+variants and dictionaries are not part of the 2.0 bundle.
 
-To build a new reference, choose a release and a destination name that does
-not already exist. The account running this command needs write access to
-`/ref`; ask the reference maintainer to run it if you do not have that access.
-For example, to build Ensembl 108:
+Somalier sites and GI hotspot targets are separate assets. The builder normalizes
+Somalier chromosome names to the FASTA and checks every REF base. Hotspot records
+that cannot be resolved are retained in `hotspots/mapping_audit.tsv`; they do not
+become reassuring no-call rows. This is a research catalogue, not a clinically
+validated panel. See its [scope and evidence limitations](reference/hotspots/README.md).
+
+The builder publishes a new directory only after all indexes and checks succeed.
+Choose a name that does not already exist. On IAC:
 
 ```bash
-nf-run reference-ensembl-v108 /biojobs/pipelines/RNApipeline/buildReference.nf \
+nf-run reference-ensembl-v107-rna2 /biojobs/pipelines/RNApipeline/buildReference.nf \
   -profile pam_cpu \
-  --ensembl_release 108 \
+  --ensembl_release 107 \
   --reference_build_root /ref \
-  --reference_name ensembl_v108_GRCh38
+  --reference_name ensembl_v107_GRCh38_rna2
 ```
 
-The builder stops if `/ref/ensembl_v108_GRCh38` already exists. Use the new
-directory with `mainRNAseq.nf` only after the builder completes successfully.
+The account needs write access to `/ref`. For another human GRCh38 release,
+change `--ensembl_release` and the destination name. The selected release must
+have matching assets available on Ensembl; it also selects the VEP image tag.
+The pipeline and matching VEP images must be installed/published by the maintainer
+before running on compute workers (see [container builds](docs/containers.md)).
+
+The index uses `sjdbOverhang=100`, preserving the existing protocol: STAR defines
+this as the maximum read length minus one for splice-junction database sequences
+([STAR manual](https://github.com/alexdobin/STAR/blob/2.7.11b/doc/STARmanual.pdf)).
+This is a fixed index setting, recorded in the reference manifest; the update
+does not infer a new index setting from each cohort's FASTQs.
 
 Paired-end FeatureCounts runs use `-p --countReadPairs -O`: each fragment is
 counted as a pair, and a fragment overlapping multiple genes or exons is counted
 for each overlap. This can make counts across features non-exclusive. The
 pipeline does not set `-B`, so counting does not require both mates to map.
 
-`params.variant_calling = true` enables the complete variant path: bcftools
-mpileup, bcftools' multiallelic caller (`-m -v`), then VEP annotation. It needs
-the reference BED and VEP cache described above. The caller's prior defaults to
-`1.1e-3`; set `params.bcftools_prior` to override it. Do not toggle mpileup or
-VEP separately.
+`params.variant_calling = true` enables BCFtools mpileup, multiallelic calling,
+normalization, VEP and one six-column hotspot TSV per sample. Targets come from
+the prepared reference. `params.bcftools_max_depth` is the per-position/per-BAM
+cap (default 100000); it affects read counts when reached. The caller prior
+remains `params.bcftools_prior = 1.1e-3`. Base quality defaults to 13 and mapping
+quality to 0, as in the previous caller; they are exposed as
+`variant_min_base_quality` and `variant_min_mapping_quality`. Depth and ALT counts
+come from the same filtered pileup. BCFtools' default BAQ, overlap and duplicate
+handling are retained ([BCFtools manual](https://samtools.github.io/bcftools/bcftools.html)).
+Do not toggle mpileup and VEP separately. No RNA no-call establishes DNA wild type.
 
-Set `params.kallisto = false` to skip transcript quantification. Set
-`params.aggregate = true` to write combined gene and exon count matrices plus
-STAR metrics under `results/Aggregated_output/`; it defaults to `false`.
-FastQC, STAR, FeatureCounts, and MultiQC always run.
+Set `params.kallisto = false` to skip quantification or `params.somalier = false`
+for alignment-only work with a legacy/nonhuman reference. Single-end Kallisto
+uses `params.fragment_length` (mean fragment length, default 120) and
+`params.read_sd` (default 20); legacy `read_len` overrides still work.
+Somalier publishes one fingerprint per sample; cohort relatedness is left for
+project analysis. Its [RNA sites panel](https://github.com/brentp/somalier/releases)
+uses expressed sites and still needs informativeness assessment on your GI data.
+
+The old `aggregate` and `samtools_depth` switches are accepted with a warning;
+2.0 does not invoke aggregation or publish raw depth. Raw tool reports and
+intermediates remain in Nextflow work for troubleshooting/resume. Keep the work
+area until you deliberately clean it after a successful run.
 
 ## Run
 
@@ -118,7 +151,8 @@ files may live in any directory you can access:
 nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
   -profile pam_cpu \
   -c /home/you/cohortA/analysis.config \
-  --sampleList /home/you/cohortA/samples.txt
+  --sampleList /home/you/cohortA/samples.txt \
+  --ref /ref/ensembl_v107_GRCh38_rna2
 ```
 
 Choose one execution profile: `pam_cpu`, `pam_gpu`, or `burst`. Burst mode is
@@ -141,7 +175,8 @@ the same command and add `-resume`:
 nf-run cohortA /biojobs/pipelines/RNApipeline/mainRNAseq.nf \
   -profile pam_cpu -resume \
   -c /home/you/cohortA/analysis.config \
-  --sampleList /home/you/cohortA/samples.txt
+  --sampleList /home/you/cohortA/samples.txt \
+  --ref /ref/ensembl_v107_GRCh38_rna2
 ```
 
 Use a new run name for a new cohort or a deliberate change to the sample sheet
@@ -164,7 +199,8 @@ all input fragments. Salmon documents the fields in its
 nf-run cohortA-strand /biojobs/pipelines/RNApipeline/strandPreflight.nf \
   -profile pam_cpu \
   --transcriptome /ref/ensembl_v107_GRCh38/cdna.fa \
-  --sampleList /home/you/cohortA/samples.txt
+  --sampleList /home/you/cohortA/samples.txt \
+  --ref /ref/ensembl_v107_GRCh38_rna2
 ```
 
 Read the summary, set the chosen `FeatureCountStrand` and `kallistoStrand` in

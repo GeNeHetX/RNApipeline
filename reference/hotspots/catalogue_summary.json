@@ -1,0 +1,33 @@
+{
+  "entries": 193,
+  "genes": 46,
+  "variant_classes": {
+    "protein_snv": 158,
+    "protein_nonsense": 1,
+    "residue_unspecified": 9,
+    "protein_indel": 2,
+    "frameshift_unspecified": 1,
+    "coding_repeat": 2,
+    "promoter_snv": 2,
+    "gene_mechanism": 13,
+    "fusion": 4,
+    "amplification": 1
+  },
+  "source_sha256": "468728d9ed002aebc609ae6e575ff1872f376bafca4a6eadf5be3498436e4b56",
+  "mapping_status": "not_yet_mapped",
+  "entries_without_source_url": 111,
+  "clinical_validation": false,
+  "report_columns": [
+    "sample_id",
+    "genesymbol",
+    "mutated_reads",
+    "total_reads",
+    "cdna_mutation",
+    "protein_mutation"
+  ],
+  "coverage_rule": {
+    "hotspot": "minimum_including_zeros",
+    "broad_inactivation": "median_including_zeros",
+    "dual_category": "hotspot_minimum_including_zeros"
+  }
+}

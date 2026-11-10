@@ -3,13 +3,12 @@ nextflow.enable.dsl=2
 process fastqc {
 	cpus 1
 	memory { params.fastqc_memory }
-	publishDir "${params.outputdir}/Fastqc_output", mode: 'copy'
 
 	input :
 	tuple val(sample), file(fqFile)
 
 	output:
-	tuple val(sample), path('*_fastqc.{zip,html}'), emit: reports
+	tuple val(sample), path('*_fastqc.zip'), emit: reports
 
 	script:
 	"""
@@ -45,16 +44,13 @@ process doSTAR {
 	cpus { params.max_threads }
 	memory { params.max_star_memory }
 	publishDir "${params.outputdir}/UnmappedReads_output", mode: 'copy', pattern: "Unmapped_*_R{1,2}.fastq.gz"
-	publishDir "${params.outputdir}/StarLog_output", mode: 'copy', pattern: "*StarOutLog.final.out"
 
 	input :
 	path index
 	tuple val(sample), file(fqFile)
 
 	output:
-	path "${sample}StarOutAligned.sortedByCoord.out.bam"
-	path "*StarOutLog.final.out"
-	//path "*_fastqc.{zip,html}"
+	tuple val(sample), path("*StarOutLog.final.out"), emit: logs
 	path "Unmapped_${sample}_R{1,2}.fastq.gz", optional: true
 	tuple val(sample), path("${sample}StarOutAligned.sortedByCoord.out.bam"), emit : bam4bai
 
@@ -104,7 +100,7 @@ process doSTAR {
 		--outFilterScoreMinOverLread $params.outFilterScoreMinOverLread \
 		--outFilterMismatchNmax $params.outFilterMismatchNmax \
 		--outFilterMismatchNoverLmax $params.outFilterMismatchNoverLmax \
-		--limitBAMsortRAM $params.limitBAMsortRAM \
+		--outSAMattrRGline ID:${sample} SM:${sample} \
 		--outReadsUnmapped Fastx
 
 	# Compress and rename Unmapped read fastqs
@@ -128,7 +124,7 @@ process doSTAR {
 process FCounts {
 	cpus 1
 	memory { params.featurecounts_memory }
-	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy'
+	publishDir "${params.outputdir}/FeatureCounts_output", mode: 'copy', pattern: '*count.txt'
 
 	input:
 	tuple val(sample), path(bam)
@@ -137,12 +133,8 @@ process FCounts {
 
 
 	output:
-	//path "*exonscount_QC.txt"
-	//path "*genecount_QC.txt"
-	path "*exonscount.txt"
-	path "*genecount.txt"
 	tuple val(sample), path("*exonscount.txt"), path("*genecount.txt"), emit: counts
-	path "*count.txt.summary", emit: summaries
+	tuple val(sample), path("*count.txt.summary"), emit: summaries
 
 	script:
 	"""
@@ -169,23 +161,6 @@ process FCounts {
 	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount_QC1.txt > genecount_QC.txt
 	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "GeneId");print}' > genecount.txt
 	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "ExonId");print}' > exonscount.txt
-}
-
-process multiqc {
-	cpus 1
-	memory { params.default_task_memory }
-	publishDir "${params.outputdir}/Multiqc_output", mode: 'copy'
-    input:
-        path files
-
-    output:
-		file "*.html"
-		path "multiqc_data"
-
-    script:
-    """
-    multiqc .
-    """
 }
 
 process samtools_depth{

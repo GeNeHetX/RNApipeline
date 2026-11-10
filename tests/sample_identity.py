@@ -22,8 +22,9 @@ def marker(path):
     return (gzip.open(p,'rt').read() if p.suffix=='.gz' else p.read_text()).strip().split()[0]
 def write(path, text): Path(path).write_text(text+'\n')
 if name=='STAR':
-    if '--runMode' in a:
-        write(Path(opt('--genomeDir'))/'Genome', 'index')
+    if '--version' in a: print('2.7.11b')
+    elif '--runMode' in a:
+        for item in ['Genome','SA','SAindex']: write(Path(opt('--genomeDir'))/item, 'index')
         write(Path(opt('--genomeDir'))/'genomeParameters.txt', 'parameters')
     else:
         read_pos=a.index('--readFilesIn')
@@ -41,15 +42,18 @@ if name=='STAR':
         time.sleep((6-int(sample[-1]))*.15)  # Finish in a different order.
         prefix=opt('--outFileNamePrefix')
         write(prefix+'Aligned.sortedByCoord.out.bam',sample)
-        write(prefix+'Log.final.out',sample)
+        write(prefix+'Log.final.out','Number of input reads | 100\nUniquely mapped reads % | 80.00%')
+        assert 'SM:'+sample in a
 elif name=='featureCounts':
     sample=marker(a[-1]); out=opt('-o')
     assert '-O' in a
     assert ('-p' in a)==('--countReadPairs' in a)
     assert out in [sample+'exonscount.txt',sample+'genecount.txt'], (sample,out)
-    write(out,sample); write(out+'.summary',sample)
+    write(out,'# fixture\nGeneid\tChr\tStart\tEnd\tStrand\tLength\t'+sample+'\n'+sample+'\t1\t1\t3\t+\t3\t5')
+    write(out+'.summary','Status\t'+sample+'\nAssigned\t5\nUnassigned_NoFeatures\t2')
 elif name=='kallisto':
-    if a[0]=='index': write(opt('-i'),'index')
+    if a[0]=='version': print('kallisto 0.51.0')
+    elif a[0]=='index': write(opt('-i'),'index')
     else:
         sample=opt('-o'); reads=[x for x in a if x.endswith('.fastq.gz')]
         markers=[marker(x) for x in reads]
@@ -64,7 +68,7 @@ elif name=='kallisto':
             with gzip.open(reads[0], 'rt') as r1, gzip.open(reads[1], 'rt') as r2:
                 assert r1.read().split()==r2.read().split()
         Path(sample).mkdir(); write(sample+'/abundance.tsv',sample)
-        write(sample+'/run_info.json',json.dumps({'sample':sample}))
+        write(sample+'/run_info.json',json.dumps({'sample':sample, 'n_processed':100,'n_pseudoaligned':90,'p_pseudoaligned':90.0}))
 elif name=='salmon':
     if a[0]=='index':
         Path(opt('-i')).mkdir()
@@ -99,10 +103,17 @@ elif name=='salmon':
         write(Path(sample)/'meta_info.json','{}')
         write(Path(sample)/'quant.sf','Name\tLength\tEffectiveLength\tTPM\tNumReads')
 elif name=='fastqc':
+    import zipfile
     for fq in [x for x in a if x.endswith('.fastq.gz')]:
-        for ext in ['zip','html']: write(fq[:-9]+'_fastqc.'+ext,marker(fq))
-elif name=='multiqc':
-    write('multiqc_report.html','QC'); Path('multiqc_data').mkdir(); write('multiqc_data/data.txt','QC')
+        stem=fq[:-9]+'_fastqc'
+        data='>>Basic Statistics\tpass\n#Measure\tValue\nFilename\t'+fq+'\nTotal Sequences\t100\n%GC\t50\n>>END_MODULE\n>>Per base sequence quality\tpass\n#Base\tMean\n1\t35\n>>END_MODULE\n'
+        with zipfile.ZipFile(stem+'.zip','w') as z: z.writestr(stem+'/fastqc_data.txt',data)
+        write(stem+'.html','report')
+elif name=='somalier':
+    if not a or '--version' in a: print('somalier 0.3.7')
+    else:
+        sample=marker(a[-1]); Path(opt('-d')).mkdir()
+        write(Path(opt('-d'))/(sample+'.somalier'),sample)
 elif name=='Rscript':
     import gzip
     for path in ['StarFCGeneCount_s5.tsv.gz','StarFCExonCount_s5.tsv.gz','StarMetrics_s5.tsv']:
@@ -110,18 +121,40 @@ elif name=='Rscript':
             with gzip.open(path,'wt') as f: f.write('matrix\n')
         else: write(path,'metrics')
 elif name=='samtools':
-    if a[0]=='index': write(a[-1],marker(opt('-b')))
-    elif a[0]=='faidx': write(a[1]+'.fai','index')
+    if '--version' in a: print('samtools 1.13')
+    elif a[0]=='index': write(a[-1],marker(opt('-b')))
+    elif a[0]=='faidx':
+        import pysam
+        pysam.faidx(a[1])
     else: write(opt('-o'),marker(next(x for x in a if x.endswith('.bam'))))
 elif name=='bcftools':
-    if a[0]=='mpileup': print(marker(next(x for x in a if x.endswith('.bam'))))
-    else:
-        assert '-m' in a and '-v' in a and '-P' in a and '-Ov' in a
-        write(opt('-o'),marker(a[1]))
+    if '--version' in a: print('bcftools 1.21')
+    elif a[0]=='mpileup':
+        assert opt('-d')=='100000'
+        write(opt('-o'),marker(next(x for x in a if x.endswith('.bam'))))
+    elif a[0]=='query': print('1\t1\t10')
+    elif a[0]=='call':
+        assert '-m' in a and '-v' in a and '-P' in a
+        print(marker(a[1]))
+    elif a[0]=='norm':
+        sample=sys.stdin.read().strip()
+        with gzip.open(opt('-o'),'wt') as f:
+            f.write('##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t'+sample+'\n')
+    elif a[0]=='sort':
+        with gzip.open(opt('-o'),'wt') as f: f.write(Path(a[1]).read_text())
+    elif a[0]=='index': write(a[-1]+'.tbi','index')
 elif name=='vep':
-    assert opt('--cache_version')=='113'
-    sample=marker(opt('-i')); assert Path(opt('-o')).name.startswith(sample+'_')
-    write(opt('-o'),sample)
+    if '--help' in a:
+        print('ensembl-vep : 107.0'); sys.exit(0)
+    assert opt('--cache_version')=='107'
+    if '--json' in a:
+        variants=json.loads(Path(opt('--input_file')).with_name('candidate_alleles.json').read_text())
+        data=[{'input':v['chrom']+'\t'+str(v['pos'])+'\t'+v['id']+'\t'+v['ref']+'\t'+v['alt'],
+               'transcript_consequences':[{'transcript_id':v['transcript'],'protein_start':v['aa_pos'],
+                   'amino_acids':v['aa_ref']+'/'+v['aa_alt']}]} for v in variants]
+        Path(opt('--output_file')).write_text(''.join(json.dumps(x)+'\n' for x in data))
+    else:
+        with gzip.open(opt('-i'),'rt') as f: write(opt('-o'),f.read())
 elif name=='bgzip':
     p=Path(a[-1])
     with gzip.open(str(p)+'.gz','wt') as f: f.write(p.read_text())
@@ -137,30 +170,41 @@ elif name=='java':
 elif name=='wget':
     import tarfile, tempfile
     output=Path(opt('-O'))
+    if a[-1].endswith('/sites.vcf.gz') and Path(a[-1]).exists():
+        import shutil
+        shutil.copyfile(a[-1], output); sys.exit(0)
     if output.name=='vep_cache.tar.gz':
         with tempfile.TemporaryDirectory() as tmp:
-            cache=Path(tmp)/'homo_sapiens'/'113_GRCh38'
+            cache=Path(tmp)/'homo_sapiens'/'107_GRCh38'
             cache.mkdir(parents=True)
             write(cache/'info.txt','cache')
             with tarfile.open(output,'w:gz') as archive:
                 archive.add(Path(tmp)/'homo_sapiens',arcname='homo_sapiens')
     else:
-        content='reference\n'
+        content='>1\nATGGTGTAA\n'
         if output.name=='ref.gtf.gz':
-            content='1\ttest\texon\t2\t4\t.\t+\t.\tgene_id "g1"; transcript_id "t1";\n'
+            content='#!genome-build GRCh38\n'+''.join('1\ttest\t'+kind+'\t1\t6\t.\t+\t0\tgene_id "g1"; gene_name "GENE"; transcript_id "t1"; transcript_version "1"; tag "Ensembl_canonical";\n' for kind in ['transcript','exon','CDS'])
+        elif output.name=='cdna.fa.gz': content='>t1.1\nATGGTG\n'
+        elif output.name=='sites.vcf.gz': content='##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nchr1\t1\t.\tA\tC\t.\tPASS\t.\n'
         with gzip.open(output,'wt') as f: f.write(content)
 else: raise AssertionError(name)
 '''
 (BIN / 'fake').write_text(FAKE)
 (BIN / 'fake').chmod(0o755)
-for name in ['STAR','featureCounts','kallisto','fastqc','multiqc','Rscript','samtools',
+for name in ['STAR','featureCounts','kallisto','fastqc','somalier','Rscript','samtools',
              'bcftools','vep','bgzip','java','wget','salmon']:
     (BIN / name).symlink_to('fake')
 REF = RUN / 'ensembl_v107_GRCh38'
 REF.mkdir()
 for name in ['ref.gtf','ref.fa','ref.ExonsOnly.bed','kallisto_index']:
     (REF / name).write_text('reference\n')
-(REF / 'VEP' / 'homo_sapiens' / '113_GRCh38').mkdir(parents=True)
+(REF / 'VEP' / 'homo_sapiens' / '107_GRCh38').mkdir(parents=True)
+(REF/'reference_manifest.json').write_text(json.dumps({'ensembl_release':107}))
+(REF/'somalier').mkdir(); (REF/'somalier/sites.vcf.gz').write_text('panel')
+(REF/'hotspots').mkdir()
+(REF/'hotspots/validation.json').write_text('{"status":"passed"}')
+(REF/'hotspots/targets.bed').write_text('1\t0\t3\n')
+(REF/'hotspots/targets.json').write_text(json.dumps({'GENE':{'chrom':'1','transcript':'t1.1','hotspot':[[0,3]],'coding':[]}}))
 READS = RUN / 'reads'
 READS.mkdir()
 SAMPLES = [f'S{i}' for i in range(1,6)]
@@ -213,7 +257,10 @@ CFG.write_text("""process {
 }
 params.max_threads = 1
 params.max_star_memory = 1.GB
-params.limitBAMsortRAM = 512000000
+params.reference_build_threads = 1
+params.reference_build_memory = 1.GB
+params.vep_memory = 1.GB
+params.pipeline_version = '2.0.0'
 docker.enabled = false
 apptainer.enabled = false
 """ % BIN)
@@ -233,22 +280,26 @@ def run(case, extra, success=True, reference=REF, sample_sheet=SHEET, pipeline=N
         print(result.stdout); raise AssertionError(f'{case}: unexpected exit {result.returncode}; {cwd}')
     if success and pipeline.name=='mainRNAseq.nf':
         report=json.loads((cwd/'results'/f'{case}_pipeline_summary.json').read_text())
-        assert report['pipeline']=='RNApipeline NF - V1.9.0'
-        assert report['version'].startswith('RNAv1.9.0_')
+        assert report['pipeline']=='RNApipeline NF - V2.0.0'
+        assert report['version'].startswith('RNAv2.0.0_')
         assert sorted(report['samples'])==SAMPLES
-        assert report['run_star'] and report['run_fastqc'] and report['run_fcounts'] and report['run_multiqc']
+        assert report['run_star'] and report['run_fastqc'] and report['run_fcounts'] and report['run_somalier']
         for sample in SAMPLES:
             for suffix in ['exonscount.txt','genecount.txt']:
-                assert (cwd/'results/FeatureCounts_output'/f'{sample}{suffix}').read_text().strip()==sample
+                assert (cwd/'results/FeatureCounts_output'/f'{sample}{suffix}').read_text().splitlines()[1].endswith(sample)
+            metrics=(cwd/'results/Metrics_output'/f'{sample}.metrics.tsv').read_text()
+            assert sample+'\tsample\t\t\tFeatureCounts\tnonzero_genes\t1' in metrics
+            assert (cwd/'results/Somalier_output'/f'{sample}.somalier').read_text().strip()==sample
             if report['run_kallisto']:
                 assert (cwd/'results/Kallisto_output'/sample/'abundance.tsv').read_text().strip()==sample
             else:
                 assert not (cwd/'results/Kallisto_output'/sample).exists()
+        assert not any((cwd/'results'/name).exists() for name in ['Multiqc_output','Fastqc_output','StarLog_output','Vep_output','status_process.txt'])
         if report['run_aggregate']:
             assert (cwd/'results/Aggregated_output/StarFCGeneCount_s5.tsv.gz').is_file()
         if report['run_variant_calling']:
             assert report['run_mpileup'] and report['run_vep']
-            assert all((cwd/'results/Vep_output'/f'{sample}_mpileup_annot.vcf.gz').is_file() for sample in SAMPLES)
+            assert all((cwd/'results/Hotspot_output'/f'{sample}.hotspots.tsv').is_file() for sample in SAMPLES)
     elif success:
         summary=(cwd/'results/strandedness_summary.tsv').read_text()
         assert 'sample\tS1\tISR' in summary
@@ -278,7 +329,7 @@ try:
     assert single_counts and all(' -p ' not in s and ' -O ' in s for s in single_counts)
     run('single_multi_lane',['--sampleList',str(SINGLE_LANES),'--single_end','true'])
     run('variants',['--sampleList','__SHEET__','--variant_calling','true'])
-    run('aggregate',['--sampleList','__SHEET__','--aggregate','true'])
+    run('legacy_aggregate',['--sampleList','__SHEET__','--aggregate','true'])
     run('no_kallisto',['--sampleList','__SHEET__','--kallisto','false'])
     assert '`--ref no_ref` is not supported' in run('builtref',['--sampleList','__SHEET__','--ref','no_ref'],False)
     assert 'always on' in run('disable_core',['--sampleList','__SHEET__','--star','false'],False)
@@ -293,10 +344,17 @@ try:
         sample_sheet=LANES,pipeline=ROOT/'strandPreflight.nf')
     ref_root=RUN/'ref_root'; ref_root.mkdir()
     build_dir=RUN/'reference_build'; build_dir.mkdir()
+    catalogue=RUN/'catalogue.tsv'
+    catalogue.write_text('id\tgene\tfeature\tvariant_class\nTEST1\tGENE\tM1V\tprotein_snv\n')
+    import hashlib
+    panel_bytes=gzip.compress(b'##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nchr1\t1\t.\tA\tC\t.\tPASS\t.\n',mtime=0)
+    # gzip fixture uses a varying header: leave checksum verification real by using a local fixture URL.
+    panel=RUN/'sites.vcf.gz'; panel.write_bytes(panel_bytes)
     build_cmd=[NF,'run',str(ROOT/'buildReference.nf'),'-ansi-log','false','-c',str(CFG),
         '--reference_build_root',str(ref_root),'--reference_name','mock_ref',
         '--fasta_ref','https://example/ref.fa.gz','--GTF','https://example/ref.gtf.gz',
-        '--cdna','https://example/cdna.fa.gz','--known_vcf','https://example/known.vcf.gz']
+        '--cdna','https://example/cdna.fa.gz','--hotspot_catalogue',str(catalogue),
+        '--somalier_sites_url',str(panel),'--somalier_sites_sha256',hashlib.sha256(panel_bytes).hexdigest()]
     built=subprocess.run(build_cmd,cwd=build_dir,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
         text=True,env={**os.environ,'NXF_DISABLE_CHECK_LATEST':'true'},timeout=180)
     (build_dir/'engine.log').write_text(built.stdout)
@@ -304,7 +362,7 @@ try:
         print(built.stdout); raise AssertionError(f'reference build failed; {build_dir}')
     built_ref=ref_root/'mock_ref'
     for required in ['Genome','genomeParameters.txt','ref.fa','ref.gtf','ref.ExonsOnly.bed',
-                     'kallisto_index','VEP/homo_sapiens/113_GRCh38/info.txt']:
+                     'kallisto_index','VEP/homo_sapiens/107_GRCh38/info.txt','reference_manifest.json','hotspots/validation.json','somalier/sites.vcf.gz']:
         assert (built_ref/required).exists(), f'missing reference output {required}'
     print('PASS reference_build')
 
