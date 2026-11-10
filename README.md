@@ -2,8 +2,8 @@
 
 RNApipeline 2.0 keeps the 1.9 sample sheet, FASTQ lane grouping, STAR alignment
 and FeatureCounts counting behavior. It adds per-sample QC metrics and Somalier
-fingerprints. Kallisto remains optional; hotspot calling remains opt-in.
-MultiQC and cohort matrices are replaced by metrics that can be combined later.
+fingerprints. Kallisto remains optional; hotspot calling remains opt-in. The
+sample-first metrics can be combined outside the pipeline for project analysis.
 
 This development version is on `pipeline-2.0`; `tod-nf` remains the 1.9 baseline.
 See [completed validation and remaining deployment work](docs/validation.md),
@@ -81,8 +81,9 @@ and indexed VEP cache. It builds the FASTA, STAR and Kallisto indexes, prepares
 the Somalier RNA panel, maps/audits the existing hotspot catalogue and checks
 candidate consequences using same-release VEP. It records source URLs, SHA256,
 versions and STAR index settings in `reference_manifest.json`. It also retains
-the generic merged exon BED for legacy reference consumers. GATK-only known
-variants and dictionaries are not part of the 2.0 bundle.
+the generic merged exon BED for legacy reference consumers. The 2.0 bundle
+contains only assets used by its supported alignment, quantification, fingerprint
+and hotspot tasks.
 
 Somalier sites and GI hotspot targets are separate assets. The builder normalizes
 Somalier chromosome names to the FASTA and checks every REF base. Hotspot records
@@ -137,10 +138,9 @@ Somalier publishes one fingerprint per sample; cohort relatedness is left for
 project analysis. Its [RNA sites panel](https://github.com/brentp/somalier/releases)
 uses expressed sites and still needs informativeness assessment on your GI data.
 
-The old `aggregate` and `samtools_depth` switches are accepted with a warning;
-2.0 does not invoke aggregation or publish raw depth. Raw tool reports and
-intermediates remain in Nextflow work for troubleshooting/resume. Keep the work
-area until you deliberately clean it after a successful run.
+The 2.0 workflow has no cohort-aggregation or standalone raw-depth task. Raw tool
+reports and intermediates remain in Nextflow work for troubleshooting/resume.
+Keep the work area until you deliberately clean it after a successful run.
 
 ## Run
 

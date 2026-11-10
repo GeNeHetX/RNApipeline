@@ -5,17 +5,19 @@ The sample sheet, lane grouping, alignment defaults, counting semantics and
 optional Kallisto behavior are preserved. The source is ready for review; this
 record does not constitute a production release or scientific validation.
 
-## Passed
+## Previously recorded checks (before the current cleanup)
 
-- Real Nextflow 24.04.3 wiring checks: paired/single-end, multiple lanes, legacy
-  CSV input, reference-root derivation, Kallisto disabled, opt-in variants,
-  retained aggregate-switch compatibility, sample identity, missing input and
-  deprecated-switch errors, strandedness preflight, complete reference-builder
-  stages and publication, plus the retained aggregation script: 18 cases.
-- Reference/report regressions: forward/reverse strand codons, wrong residue
-  auditing, VEP consequence mismatch rejection, ALT counts, zero-inclusive depth,
-  broad median, dual-category hotspot minimum even when coding median is lower,
-  and omission of an unassessable dual-category no-call.
+These results were recorded for commit `b8fccab`, before the zero-depth fix and
+removal of legacy MultiQC/GATK/aggregation code below. They have not been rerun
+against the current working tree.
+
+- Real Nextflow 24.04.3 wiring checks were reported for paired/single-end,
+  multiple lanes, legacy CSV input, reference-root derivation, Kallisto disabled,
+  opt-in variants, sample identity, missing input, strandedness preflight and
+  reference-builder stages.
+- The prior report claimed zero-inclusive depth and broad-median regressions
+  passed. A later source audit found the zero-depth histogram was initialized
+  with a negative interval length, so that claim is withdrawn pending rerun.
 - Active pipeline and VEP107 Dockerfiles built successfully for ARM64 and x86_64.
 - Real FastQC, FeatureCounts, Kallisto, Somalier and BCFtools ran on synthetic
   directly constructed FASTQ/BAM inputs in both pipeline images. No real reads
@@ -29,6 +31,19 @@ record does not constitute a production release or scientific validation.
 - Whitespace checks and Python compilation passed. The final reference assembly
   stages links in work; a Nextflow publication check confirmed copied output
   files are ordinary files, avoiding an extra full reference copy in work.
+
+## Current source changes awaiting rerun
+
+- The zero-depth histogram now seeds implicit uncovered bases with the positive
+  half-open interval length (`end - start`). Each observed depth position then
+  replaces one implicit zero with its measured depth. The existing regression
+  fixture expects a missing hotspot base to contribute zero, but has not yet been
+  rerun after this correction.
+- MultiQC and GATK/Picard processes/configuration have been removed from the active
+  2.0 source. Cohort aggregation tasks and switches have also been removed; copies
+  of both legacy R aggregation scripts are kept in Worknotes outside this repo.
+- The full human reference build, GI-sample mapping, Somalier informativeness
+  assessment and current-source regression run remain outstanding.
 
 ## Local image identities
 

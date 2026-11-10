@@ -248,10 +248,7 @@ CFG.write_text("""process {
  withName: FCounts { cpus = 1; memory = 1.GB }
  withName: 'KallistoPE|Kallisto_single_end' { cpus = 1; memory = 1.GB }
  withName: fastqc { cpus = 1; memory = 1.GB }
- withName: multiqc { cpus = 1; memory = 1.GB }
- withName: gatk_vc { cpus = 1; memory = 1.GB }
  withName: samtools_index { cpus = 1; memory = 1.GB }
- withName: samtools_depth { cpus = 1; memory = 1.GB }
  withName: 'Vep.*' { cpus = 1; memory = 1.GB }
  beforeScript = 'export PATH=%s:$PATH'
 }
@@ -294,9 +291,7 @@ def run(case, extra, success=True, reference=REF, sample_sheet=SHEET, pipeline=N
                 assert (cwd/'results/Kallisto_output'/sample/'abundance.tsv').read_text().strip()==sample
             else:
                 assert not (cwd/'results/Kallisto_output'/sample).exists()
-        assert not any((cwd/'results'/name).exists() for name in ['Multiqc_output','Fastqc_output','StarLog_output','Vep_output','status_process.txt'])
-        if report['run_aggregate']:
-            assert (cwd/'results/Aggregated_output/StarFCGeneCount_s5.tsv.gz').is_file()
+        assert not any((cwd/'results'/name).exists() for name in ['Fastqc_output','StarLog_output','Vep_output','status_process.txt'])
         if report['run_variant_calling']:
             assert report['run_mpileup'] and report['run_vep']
             assert all((cwd/'results/Hotspot_output'/f'{sample}.hotspots.tsv').is_file() for sample in SAMPLES)
@@ -329,7 +324,6 @@ try:
     assert single_counts and all(' -p ' not in s and ' -O ' in s for s in single_counts)
     run('single_multi_lane',['--sampleList',str(SINGLE_LANES),'--single_end','true'])
     run('variants',['--sampleList','__SHEET__','--variant_calling','true'])
-    run('legacy_aggregate',['--sampleList','__SHEET__','--aggregate','true'])
     run('no_kallisto',['--sampleList','__SHEET__','--kallisto','false'])
     assert '`--ref no_ref` is not supported' in run('builtref',['--sampleList','__SHEET__','--ref','no_ref'],False)
     assert 'always on' in run('disable_core',['--sampleList','__SHEET__','--star','false'],False)
@@ -366,38 +360,6 @@ try:
         assert (built_ref/required).exists(), f'missing reference output {required}'
     print('PASS reference_build')
 
-    rscript=shutil.which('Rscript')
-    if rscript:
-        import gzip
-        aggregate_results=RUN/'aggregate_fixture'/'results'
-        counts_dir=aggregate_results/'FeatureCounts_output'; logs_dir=aggregate_results/'StarLog_output'
-        counts_dir.mkdir(parents=True); logs_dir.mkdir(parents=True)
-        for sample, values in [('S1',(11,21)),('S2',(12,22))]:
-            header='Geneid\tChr\tStart\tEnd\tStrand\tLength\t'+sample+'StarOutAligned.sortedByCoord.out.bam\n'
-            for suffix, counts in [('genecount.txt',values),('exonscount.txt',(v*10 for v in values))]:
-                with (counts_dir/f'{sample}{suffix}').open('w') as f:
-                    f.write('# featureCounts fixture\n'+header)
-                    for gene, count in zip(['g1','g2'],counts):
-                        f.write(f'{gene}\tchr1\t1\t10\t+\t10\t{count}\n')
-            (logs_dir/f'{sample}StarOutLog.final.out').write_text(
-                'Number of input reads | 100\nUniquely mapped reads number | 80\n'
-                'Uniquely mapped reads % | 80.00%\n')
-        aggregation=subprocess.run([rscript,'--vanilla',str(ROOT/'PrePostScripts/aggregSTAR.R'),
-            str(aggregate_results),'2'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=60)
-        if aggregation.returncode:
-            print(aggregation.stdout); raise AssertionError('R aggregation failed')
-        with gzip.open(aggregate_results/'StarFCGeneCount_s2.tsv.gz','rt') as f:
-            gene_matrix=f.read()
-        assert gene_matrix.splitlines()[0] == 'S1\tS2'
-        assert 'g1\t11\t12' in gene_matrix and 'g2\t21\t22' in gene_matrix
-        with gzip.open(aggregate_results/'StarFCExonCount_s2.tsv.gz','rt') as f:
-            exon_matrix=f.read()
-        assert 'g1\t110\t120' in exon_matrix and 'g2\t210\t220' in exon_matrix
-        metrics=(aggregate_results/'StarMetrics_s2.tsv').read_text()
-        assert 'Uniquelymappedreads' in metrics and '80.00' in metrics
-        print('PASS aggregation_script')
-    else:
-        print('SKIP aggregation_script (Rscript is not installed)')
     print('All sample-identity checks passed')
 except Exception:
     print(f'Diagnostic files retained: {RUN}')

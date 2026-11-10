@@ -42,7 +42,11 @@ def report(sample, targets, depths, vcf, output):
     hist={}
     for gene,t in genes.items():
         by_chrom[t['chrom']].append((gene,t))
-        hist[gene]={kind:Counter({0:sum(e-s for s,e in t[kind])}) for kind in ('hotspot','coding')}
+        # BED-style spans are zero-based half-open: their length is end - start.
+        # Seed implicit uncovered bases as zero depth; each observed position below
+        # replaces one such zero with its measured depth.
+        hist[gene]={kind:Counter({0:sum(end-start for start,end in t[kind])})
+                    for kind in ('hotspot','coding')}
     with open(depths) as f:
         for line in f:
             chrom,pos,depth=line.rstrip().split('\t')
@@ -50,6 +54,8 @@ def report(sample, targets, depths, vcf, output):
             for gene,t in by_chrom[chrom]:
                 for kind in ('hotspot','coding'):
                     if contains(t[kind],pos):
+                        # The histogram starts with every target base at zero;
+                        # replace that implicit zero with this observed position.
                         hist[gene][kind][0]-=1
                         hist[gene][kind][depth]+=1
     rows,detected=[],set()

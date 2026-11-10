@@ -133,8 +133,6 @@ workflow Main {
     if (!(params.bcftools_max_depth.toString() ==~ /[1-9]\d*/)) error '--bcftools_max_depth must be a positive integer'
     if (params.vep_cache_version && params.vep_cache_version.toString() != params.ensembl_release.toString())
         error 'VEP cache must use --ensembl_release; remove the separate --vep_cache_version override'
-    if (flag(params.aggregate) || flag(params.samtools_depth))
-        log.warn '2.0 publishes per-sample metrics and hotspot reports; aggregate/samtools_depth switches are retained for config compatibility but no longer publish cohort matrices or raw depth.'
     reference_manifest = file("${reference_path}/reference_manifest.json")
     reference_info = reference_manifest.exists() ? new groovy.json.JsonSlurper().parseText(reference_manifest.text) : null
     if (reference_info && reference_info.ensembl_release.toString() != params.ensembl_release.toString())
@@ -231,14 +229,12 @@ workflow Main {
         outFilterMismatchNoverLmax  : params.outFilterMismatchNoverLmax,
         run_fastqc : true,
         run_fcounts: true,
-        run_aggregate: false,
         featureCountStrand  : params.FeatureCountStrand,
         featureCountOptions : flag(params.single_end) ? '-O' : '-p --countReadPairs -O',
         run_kallisto: flag(params.kallisto),
         kallistoStrand  : params.kallistoStrand,
         fragment_length : params.read_len ?: params.fragment_length,
         read_sd : params.read_sd,
-        run_samtools : false,
         run_somalier : flag(params.somalier),
         reference_manifest : reference_info,
         run_variant_calling: flag(params.variant_calling),

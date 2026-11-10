@@ -56,52 +56,6 @@ process Check_samples{
 
 }
 
-process Check_process{
-    publishDir "${params.outputdir}", mode: 'copy'
-    input:
-	file csvtab
-    path(multiqc_files) // Collects all MultiQC output files
-    path(check_process_script)
-
-    output:
-    file("status_process.txt")
-
-    script:
-    """
-    python3  ${check_process_script} -path_res ${params.outputdir} -path_csv ${csvtab}
-    """
-}
-
-process AggregateSTAR {
-	cpus 1
-	memory { params.aggregate_memory }
-    publishDir "${params.outputdir}/Aggregated_output", mode: 'copy'
-
-    input:
-    path feature_counts
-    path star_logs
-    path aggregate_script
-
-    output:
-    path 'StarFCGeneCount_s*.tsv.gz', emit: gene_matrix
-    path 'StarFCExonCount_s*.tsv.gz', emit: exon_matrix
-    path 'StarMetrics_s*.tsv', emit: star_metrics
-
-    script:
-    """
-    set -euo pipefail
-    mkdir -p FeatureCounts_output StarLog_output
-    for f in ${feature_counts}; do
-     ln -s "\$(realpath -- "\$f")" "FeatureCounts_output/\$(basename -- "\$f")"
-    done
-    for f in ${star_logs}; do
-     ln -s "\$(realpath -- "\$f")" "StarLog_output/\$(basename -- "\$f")"
-    done
-
-    Rscript --vanilla ${aggregate_script} "\$PWD" ${task.cpus}
-    """
-}
-
 // Wait for actual process outputs; publishDir copies can finish asynchronously.
 process Write_summary {
     publishDir "${params.outputdir}", mode: 'copy'
@@ -116,7 +70,7 @@ process Write_summary {
     script:
     def steps = [star: true, fastqc: true,
         fcounts: true, kallisto: report.run_kallisto,
-        samtools: report.run_samtools, mpileup: report.run_variant_calling,
+        mpileup: report.run_variant_calling,
         vep_mpileup: report.run_variant_calling, metrics: true,
         somalier: report.run_somalier, hotspots: report.run_variant_calling]
     steps.findAll { step, enabled -> enabled }.each { step, enabled ->

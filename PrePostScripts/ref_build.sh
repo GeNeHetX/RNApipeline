@@ -175,12 +175,6 @@ if [ ! -d ${species} ]; then
     tar -xf ${species}_vep_${Ensemblv}_${genome_version}.tar.gz
 fi
 
-##unzip the vcf file
-if [ -f ${species}.vcf.gz ] && [ ! -f knowns_variants.vcf ]; then
-    gunzip -c ${species}.vcf.gz > knowns_variants.vcf
-elif [ -f 1000GENOMES-phase_3.vcf.gz ] && [ ! -f knowns_variants.vcf ]; then
-    gunzip -c 1000GENOMES-phase_3.vcf.gz > knowns_variants.vcf
-fi
 echo "Done Unzipping reference files."
 
 echo "Creating tool indexes ..."
@@ -190,25 +184,11 @@ if [ ! -f kallisto_index ]; then
     echo "Creating Kallisto index..."
     apptainer exec kallisto_0.51.1--heb0cbe2_0.sif kallisto index -i kallisto_index transcriptom.fa
 fi
-##create an  samtools index (needed for GATK4)
+## Create the FASTA index used by downstream alignment and variant tools.
 ## run docker samtools
 if [ ! -f ref.fa.fai ]; then
     echo "Creating samtools index..."
     apptainer exec genehetx-rnaseq_v1.6.0.sif samtools faidx ref.fa
-fi
-
-##create a dict (needed for GATK4)
-##you should specify the path to your picard.jar file or run docker
-if [ ! -f ref.dict ]; then
-    echo "Creating Picard dict..."
-    apptainer exec genehetx-rnaseq_v1.6.0.sif java -jar /usr/local/bin/picard.jar  CreateSequenceDictionary R= ref.fa O= ref.dict
-fi
-
-##indexinf the vcf file (needed for  haplotypeCaller)
-##you should specify the path to your gatk jar file of the specific region you use
-if [ ! -f knowns_variants.vcf.idx ]; then
-    echo "Creating GATK index for VCF file..."
-    apptainer exec genehetx-rnaseq_v1.6.0.sif java -jar /usr/local/gatk-4.6.1.0/gatk-package-4.6.1.0-local.jar IndexFeatureFile -I knowns_variants.vcf
 fi
 
 echo "Done creating tool indexes."
@@ -227,9 +207,6 @@ cp ref.gtf $newDir/ref.gtf
 cp ref.fa $newDir/ref.fa
 cp kallisto_index $newDir/kallisto_index
 cp ref.fa.fai $newDir/ref.fa.fai
-cp ref.dict $newDir/ref.dict
-cp knowns_variants.vcf  $newDir/knowns_variants.vcf
-cp knowns_variants.vcf.idx $newDir/knowns_variants.vcf.idx
 cp Exon_gtf_info.tab $newDir/Exon_gtf_info.tab
 
 #VEP files
@@ -255,9 +232,6 @@ rm -f ref.fa
 rm -f transcriptom.fa
 rm -f kallisto_index
 rm -f ref.fa.fai
-rm -f ref.dict
-rm -f knowns_variants.vcf
-rm -f knowns_variants.vcf.idx
 rm -f Exon_gtf_info.tab
 rm -f ref.GeneLvlOnly.gtf
 rm -f refGeneID_ensembl_v${Ensemblv}.*

@@ -162,30 +162,3 @@ process FCounts {
 	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' genecount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "GeneId");print}' > genecount.txt
 	// awk '{gsub("StarOutAligned.sortedByCoord.out.bam", "");print}' exonscount1.txt | awk '{gsub("Chr", "Chromosome");print}'|awk '{gsub("Geneid", "ExonId");print}' > exonscount.txt
 }
-
-process samtools_depth{
-	cpus 1
-	memory { params.default_task_memory }
-
-	publishDir "${params.outputdir}/SamtoolsDepth_output", mode: 'copy', pattern: "*_depth.txt"
-
-	input:
-	tuple val(sample), file(bamFile)
-	path bedfile
-
-	output:
-	tuple val(sample), path("*_depth.txt"), emit: depths
-
-	when:
-	params.samtools_depth.toString().toBoolean()
-
-	script:
-	if (params.no_multimapped.toString().toBoolean())
-		"""
-		samtools depth -a -H -b $bedfile $bamFile -Q 255 -o ${sample}_q255_depth.txt
-		"""
-	else
-		"""
-		samtools depth -a -H -b $bedfile $bamFile -Q 0 -o ${sample}_q0_depth.txt
-		"""
-}
